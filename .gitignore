@@ -14,6 +14,9 @@ wheels/
 .ruff_cache/
 
 # Local secrets
-.env
+# `.env*` catches .env.backup, .env.local, .env.production too, which a plain
+# `.env` rule lets through into a `git add .`.
+.env*
+!.env.example
 .atl/
 .codegraph/
