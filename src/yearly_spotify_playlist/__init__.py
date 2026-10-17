@@ -28,9 +28,7 @@ def main() -> int:
         return 1
 
     total_added = sum(result.added for result in results)
-    print(
-        f"Done: {len(results)} yearly playlists, {total_added} songs added."
-    )
+    print(f"Done: {len(results)} yearly playlists, {total_added} songs added.")
     return 0
 
 
@@ -45,5 +43,5 @@ def _make_console_utf8_safe() -> None:
         if reconfigure is not None:
             try:
                 reconfigure(errors="replace")
-            except (ValueError, OSError):  # pragma: no cover - detached stream
+            except ValueError, OSError:  # pragma: no cover - detached stream
                 pass

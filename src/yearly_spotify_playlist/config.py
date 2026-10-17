@@ -53,7 +53,11 @@ def load_settings(*, env_file: str | os.PathLike[str] | None = None) -> Settings
 
     missing = [
         name
-        for name in ("SPOTIFY_CLIENT_ID", "SPOTIFY_CLIENT_SECRET", "SPOTIFY_REFRESH_TOKEN")
+        for name in (
+            "SPOTIFY_CLIENT_ID",
+            "SPOTIFY_CLIENT_SECRET",
+            "SPOTIFY_REFRESH_TOKEN",
+        )
         if not (os.getenv(name) or "").strip()
     ]
     if missing:
@@ -67,6 +71,8 @@ def load_settings(*, env_file: str | os.PathLike[str] | None = None) -> Settings
         client_id=(os.environ["SPOTIFY_CLIENT_ID"]).strip(),
         client_secret=(os.environ["SPOTIFY_CLIENT_SECRET"]).strip(),
         refresh_token=(os.environ["SPOTIFY_REFRESH_TOKEN"]).strip(),
-        redirect_uri=(os.getenv("SPOTIFY_REDIRECT_URI") or DEFAULT_REDIRECT_URI).strip(),
+        redirect_uri=(
+            os.getenv("SPOTIFY_REDIRECT_URI") or DEFAULT_REDIRECT_URI
+        ).strip(),
         market=(os.getenv("SPOTIFY_MARKET") or "").strip() or None,
     )

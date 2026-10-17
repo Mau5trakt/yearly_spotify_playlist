@@ -75,7 +75,9 @@ def test_chunked_rejects_non_positive_size():
 
 def test_select_new_tracks_filters_while_preserving_order():
     tracks = _tracks(4)
-    assert [t.uri for t in select_new_tracks(tracks, {"spotify:track:0", "spotify:track:2"})] == [
+    assert [
+        t.uri for t in select_new_tracks(tracks, {"spotify:track:0", "spotify:track:2"})
+    ] == [
         "spotify:track:1",
         "spotify:track:3",
     ]
@@ -88,7 +90,9 @@ def test_sync_year_creates_playlist_when_missing():
     result, statuses, settled = _run(library, 2023, tracks)
 
     assert library.created == [("2023", "Liked songs in 2023")]
-    assert library.added == [("new-id", ["spotify:track:0", "spotify:track:1", "spotify:track:2"])]
+    assert library.added == [
+        ("new-id", ["spotify:track:0", "spotify:track:1", "spotify:track:2"])
+    ]
     assert result.created is True
     assert (result.added, result.skipped) == (3, 0)
     assert all(added for _, added in settled)
@@ -100,7 +104,9 @@ def test_sync_year_reuses_existing_playlist_and_skips_known_tracks():
     library = FakeLibrary(existing_items={"spotify:track:0", "spotify:track:1"})
     tracks = _tracks(3)
 
-    result, statuses, settled = _run(library, 2023, tracks, existing_playlist={"id": "old-id"})
+    result, statuses, settled = _run(
+        library, 2023, tracks, existing_playlist={"id": "old-id"}
+    )
 
     assert library.created == []
     assert library.contents_read == ["old-id"]
@@ -114,7 +120,9 @@ def test_sync_year_reuses_existing_playlist_and_skips_known_tracks():
 def test_sync_year_is_a_noop_when_everything_is_already_there():
     library = FakeLibrary(existing_items={f"spotify:track:{i}" for i in range(3)})
 
-    result, _, settled = _run(library, 2023, _tracks(3), existing_playlist={"id": "old-id"})
+    result, _, settled = _run(
+        library, 2023, _tracks(3), existing_playlist={"id": "old-id"}
+    )
 
     assert library.added == []
     assert (result.added, result.skipped) == (0, 3)
@@ -127,7 +135,11 @@ def test_sync_year_batches_at_the_api_limit():
 
     result, statuses, settled = _run(library, 2023, _tracks(count))
 
-    assert [len(uris) for _, uris in library.added] == [ADD_BATCH_SIZE, ADD_BATCH_SIZE, 5]
+    assert [len(uris) for _, uris in library.added] == [
+        ADD_BATCH_SIZE,
+        ADD_BATCH_SIZE,
+        5,
+    ]
     assert result.added == count
     assert len(settled) == count
     assert all(len(uris) <= ADD_BATCH_SIZE for _, uris in library.added)

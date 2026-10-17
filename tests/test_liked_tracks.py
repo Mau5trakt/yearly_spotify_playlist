@@ -38,7 +38,9 @@ def _item(name: str, uri: str, added_at: str, **track_extra) -> dict:
 
 
 def test_parse_saved_track_reads_name_artist_and_year():
-    track = parse_saved_track(_item("Bohemian Rhapsody", "spotify:track:a", "2023-04-17T09:31:05Z"))
+    track = parse_saved_track(
+        _item("Bohemian Rhapsody", "spotify:track:a", "2023-04-17T09:31:05Z")
+    )
     assert track is not None
     assert track.name == "Bohemian Rhapsody"
     assert track.artist == "Some Artist"
@@ -47,13 +49,23 @@ def test_parse_saved_track_reads_name_artist_and_year():
 
 
 def test_parse_saved_track_rejects_unusable_entries():
-    assert parse_saved_track({"added_at": None, "track": {"name": "x", "uri": "u"}}) is None
-    assert parse_saved_track({"added_at": "2023-01-01T00:00:00Z", "track": None}) is None
+    assert (
+        parse_saved_track({"added_at": None, "track": {"name": "x", "uri": "u"}})
+        is None
+    )
+    assert (
+        parse_saved_track({"added_at": "2023-01-01T00:00:00Z", "track": None}) is None
+    )
     assert parse_saved_track({"added_at": "2023-01-01T00:00:00Z"}) is None
-    assert parse_saved_track({"added_at": "2023-01-01T00:00:00Z", "track": {"name": "x"}}) is None
+    assert (
+        parse_saved_track({"added_at": "2023-01-01T00:00:00Z", "track": {"name": "x"}})
+        is None
+    )
     assert (
         parse_saved_track(
-            _item("local", "spotify:local:a:b:c:d", "2023-01-01T00:00:00Z", is_local=True)
+            _item(
+                "local", "spotify:local:a:b:c:d", "2023-01-01T00:00:00Z", is_local=True
+            )
         )
         is None
     )

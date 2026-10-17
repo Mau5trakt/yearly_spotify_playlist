@@ -100,7 +100,9 @@ class SpotifyLibrary:
         owned: dict[str, dict[str, Any]] = {}
         offset = 0
         while True:
-            page = self._client.current_user_playlists(limit=PLAYLIST_PAGE_SIZE, offset=offset)
+            page = self._client.current_user_playlists(
+                limit=PLAYLIST_PAGE_SIZE, offset=offset
+            )
             for playlist in page.get("items", []):
                 owner = playlist.get("owner") or {}
                 name = playlist.get("name")

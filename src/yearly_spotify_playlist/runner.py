@@ -55,9 +55,7 @@ def run(settings: Settings) -> list[YearResult]:
 
     grouped = _read_liked_tracks(library)
     if not grouped:
-        raise RunError(
-            "No liked songs were found in your Spotify library."
-        )
+        raise RunError("No liked songs were found in your Spotify library.")
 
     total_tracks = sum(len(tracks) for tracks in grouped.values())
     years = ", ".join(str(year) for year in sorted(grouped, reverse=True))
@@ -104,7 +102,6 @@ def _sync_all_years(
             years_bar.set_postfix_str(name, refresh=True)
 
             with progress.track_progress(year, len(tracks)) as tracks_bar:
-
                 on_status, on_track = _bar_callbacks(tracks_bar, name)
 
                 result = sync_year(
@@ -148,10 +145,13 @@ def explain(exc: Exception) -> str:
             )
         if status == 429:
             retry_after = (exc.headers or {}).get("Retry-After")
-            wait = f" Spotify suggests retrying in {retry_after} seconds." if retry_after else ""
+            wait = (
+                f" Spotify suggests retrying in {retry_after} seconds."
+                if retry_after
+                else ""
+            )
             return (
-                "Spotify's request limit was reached (429) even after "
-                f"retrying.{wait}"
+                f"Spotify's request limit was reached (429) even after retrying.{wait}"
             )
         return f"Spotify returned an error ({status}): {exc}"
 
