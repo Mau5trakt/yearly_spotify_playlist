@@ -161,13 +161,11 @@ Exit code: `0` if everything succeeded, `1` if it failed.
 | `SPOTIFY_REFRESH_TOKEN` | Yes | — | Long-lived access token. Without it there is no way to obtain a new one. |
 | `SPOTIFY_REDIRECT_URI` | No | `http://127.0.0.1:8888/callback` | Must match exactly the one registered in the dashboard. Only used during authorization. |
 | `SPOTIFY_MARKET` | No | *(empty)* | ISO 3166-1 alpha-2 country code (e.g. `ES`). Filters out content unavailable in your market. If left empty, your account's country is used. |
-| `SPOTIFY_PUBLIC_PLAYLISTS` | No | `false` | If `true`, playlists are created public. Accepts `1/true/yes/y/on`. |
-
 Real environment variables take precedence over the `.env`.
 
-> **Playlists are private by default.** Unless you explicitly set
-> `SPOTIFY_PUBLIC_PLAYLISTS` to a truthy value, every playlist this tool creates is
-> private and visible only to you. The flag is opt-in, never opt-out.
+> **Playlists are always public.** A Spotify app in Development Mode cannot create
+> private playlists: it sends `public: false`, the API echoes `false` back, and the
+> playlist is still created public. There is no API workaround, so there is no flag.
 
 ### Scopes
 
@@ -176,12 +174,9 @@ The authorization command requests these four:
 | Scope | Why |
 |---|---|
 | `user-library-read` | Read your liked songs (`GET /me/tracks`). |
-| `playlist-modify-private` | Create and modify private playlists. |
-| `playlist-modify-public` | In case you set `SPOTIFY_PUBLIC_PLAYLISTS=true`. |
+| `playlist-modify-public` | Create the playlists. |
+| `playlist-modify-private` | Modify the private ones you already have. |
 | `playlist-read-private` | See your playlists so existing ones can be reused. |
-
-All four are requested from the start on purpose: if you later change
-`SPOTIFY_PUBLIC_PLAYLISTS`, you do not need to authorize again.
 
 `user-library-modify` is **not** requested: the program only **reads** your library.
 It never deletes or unlikes anything.
@@ -365,5 +360,6 @@ are not included.
 - To revoke it: go to <https://developer.spotify.com/dashboard> → your app →
   **Settings** → *Revoke client secret* and re-authorize.
 - The program only requests read access to your library. It never deletes anything.
-- Playlists are created **private** unless you explicitly set
-  `SPOTIFY_PUBLIC_PLAYLISTS`. Visibility is opt-in, never opt-out.
+- Playlists are created **public**. Spotify does not allow a Development Mode app to
+  create private ones, so this is not a choice the tool makes. To hide a playlist,
+  use the client's own *Make private* action.

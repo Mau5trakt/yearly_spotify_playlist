@@ -27,13 +27,13 @@ class FakeLibrary:
     """Records the calls sync_year makes instead of hitting the API."""
 
     def __init__(self, existing_items: set[str] | None = None) -> None:
-        self.created: list[tuple[str, bool, str]] = []
+        self.created: list[tuple[str, str]] = []
         self.added: list[tuple[str, list[str]]] = []
         self.existing_items = existing_items or set()
         self.contents_read: list[str] = []
 
-    def create_playlist(self, name: str, *, public: bool, description: str) -> str:
-        self.created.append((name, public, description))
+    def create_playlist(self, name: str, *, description: str) -> str:
+        self.created.append((name, description))
         return "new-id"
 
     def playlist_track_uris(self, playlist_id: str) -> set[str]:
@@ -44,7 +44,7 @@ class FakeLibrary:
         self.added.append((playlist_id, uris))
 
 
-def _run(library, year, tracks, existing_playlist=None, public=False):
+def _run(library, year, tracks, existing_playlist=None):
     statuses: list[str] = []
     settled: list[tuple[str, bool]] = []
     result = sync_year(
@@ -52,7 +52,6 @@ def _run(library, year, tracks, existing_playlist=None, public=False):
         year,
         tracks,
         existing_playlist=existing_playlist,
-        public=public,
         on_status=statuses.append,
         on_track=lambda t, added: settled.append((t.name, added)),
     )
@@ -88,7 +87,7 @@ def test_sync_year_creates_playlist_when_missing():
 
     result, statuses, settled = _run(library, 2023, tracks)
 
-    assert library.created == [("2023", False, "Liked songs in 2023")]
+    assert library.created == [("2023", "Liked songs in 2023")]
     assert library.added == [("new-id", ["spotify:track:0", "spotify:track:1", "spotify:track:2"])]
     assert result.created is True
     assert (result.added, result.skipped) == (3, 0)
@@ -133,9 +132,3 @@ def test_sync_year_batches_at_the_api_limit():
     assert len(settled) == count
     assert all(len(uris) <= ADD_BATCH_SIZE for _, uris in library.added)
     assert "and 99 more" in statuses[1]
-
-
-def test_sync_year_honours_public_flag():
-    library = FakeLibrary()
-    _run(library, 2023, _tracks(1), public=True)
-    assert library.created[0][1] is True

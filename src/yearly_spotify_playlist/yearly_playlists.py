@@ -63,7 +63,6 @@ def sync_year(
     tracks: Sequence[LikedTrack],
     *,
     existing_playlist: dict | None,
-    public: bool,
     on_status: StatusCallback,
     on_track: TrackCallback,
 ) -> YearResult:
@@ -82,7 +81,7 @@ def sync_year(
     if existing_playlist is None:
         on_status(f"creating playlist {name}")
         playlist_id = library.create_playlist(
-            name, public=public, description=playlist_description(year)
+            name, description=playlist_description(year)
         )
         already_present: set[str] = set()
         created = True

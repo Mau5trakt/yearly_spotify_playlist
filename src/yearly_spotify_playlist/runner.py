@@ -96,7 +96,6 @@ def _sync_all_years(
                     year,
                     tracks,
                     existing_playlist=existing.get(name),
-                    public=settings.public_playlists,
                     on_status=on_status,
                     on_track=on_track,
                 )

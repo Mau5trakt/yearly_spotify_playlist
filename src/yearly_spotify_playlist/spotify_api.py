@@ -128,14 +128,19 @@ class SpotifyLibrary:
                 return uris
             offset += PLAYLIST_ITEMS_PAGE_SIZE
 
-    def create_playlist(self, name: str, *, public: bool, description: str) -> str:
-        """Create a playlist via ``POST /me/playlists`` and return its id.
+    def create_playlist(self, name: str, *, description: str) -> str:
+        """Create a public playlist via ``POST /me/playlists`` and return its id.
 
         ``POST /users/{user_id}/playlists`` was removed for Development Mode apps
         in February 2026; spotipy's ``user_playlist_create`` still targets it.
+
+        Playlists are always public. Spotify accepts ``public: false`` from a
+        Development Mode app, echoes it back, and still creates a public playlist;
+        ``PUT /playlists/{id}`` does not flip it either. The flag is removed rather
+        than kept as a setting that silently does nothing.
         """
         created = self._client.current_user_playlist_create(
-            name=name, public=public, description=description
+            name=name, public=True, description=description
         )
         return str(created["id"])
 
