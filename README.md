@@ -287,6 +287,17 @@ the shape of Spotify's responses; the rest work with clean data.
 uv run pytest
 ```
 
+## Linting and Formatting
+
+[ruff](https://docs.astral.sh/ruff/) does both jobs; it is the only tool
+configured, in `[tool.ruff]` under `pyproject.toml`.
+
+```bash
+uv run ruff check          # lint
+uv run ruff format         # format in place
+uv run ruff format --check # fail if anything is unformatted
+```
+
 They cover the pure logic: year extraction, discarding invalid entries, grouping,
 deduplication, chunking into batches of 100, playlist reuse, and skipped-count
 bookkeeping. They do not touch the network — the part that actually talks to Spotify
