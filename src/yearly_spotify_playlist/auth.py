@@ -72,7 +72,7 @@ def main() -> int:
     print(f"   {url}\n")
     try:
         webbrowser.open(url)
-    except Exception:  # noqa: BLE001 - opening a browser is a convenience only
+    except Exception:  # noqa: BLE001, S110 - opening a browser is a convenience only
         pass
 
     print(f"2. You will end up on a page like {redirect_uri} that may fail.")

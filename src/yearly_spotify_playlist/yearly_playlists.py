@@ -4,15 +4,12 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass
-from typing import TypeVar
 
 from .liked_tracks import LikedTrack
 from .spotify_api import SpotifyLibrary
 
 #: ``POST /playlists/{id}/items`` accepts at most 100 URIs per request.
 ADD_BATCH_SIZE = 100
-
-T = TypeVar("T")
 
 #: Human-readable status, emitted right before a network call.
 StatusCallback = Callable[[str], None]
@@ -42,7 +39,7 @@ def playlist_description(year: int) -> str:
     return f"Liked songs in {year}"
 
 
-def chunked(items: Sequence[T], size: int) -> Iterator[Sequence[T]]:
+def chunked[T](items: Sequence[T], size: int) -> Iterator[Sequence[T]]:
     """Yield consecutive slices of ``items`` of at most ``size`` elements."""
     if size <= 0:
         raise ValueError("size must be positive")
