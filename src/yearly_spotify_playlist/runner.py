@@ -5,12 +5,40 @@ from __future__ import annotations
 from typing import Any
 
 from spotipy import SpotifyException
+from tqdm import tqdm
 
 from . import progress
 from .config import ConfigError, Settings
 from .liked_tracks import LikedTrack, group_by_year
 from .spotify_api import SpotifyLibrary, build_spotify
-from .yearly_playlists import YearResult, playlist_name, sync_year
+from .yearly_playlists import (
+    StatusCallback,
+    TrackCallback,
+    YearResult,
+    playlist_name,
+    sync_year,
+)
+
+
+def _bar_callbacks(bar: tqdm, name: str) -> tuple[StatusCallback, TrackCallback]:
+    """Build the callbacks that drive the inner bar for one year playlist.
+
+    ``bar`` and ``name`` are bound as parameters here instead of being captured
+    from the caller's loop variables, so a callback that runs after the loop has
+    moved on still reports the year it was built for.
+    """
+
+    def on_status(message: str) -> None:
+        progress.describe(bar, message)
+
+    def on_track(track: LikedTrack, added: bool) -> None:
+        if added:
+            progress.describe(bar, f'added "{track.name}" to playlist {name}')
+        else:
+            progress.describe(bar, f'"{track.name}" was already in playlist {name}')
+        bar.update(1)
+
+    return on_status, on_track
 
 
 class RunError(RuntimeError):
@@ -77,19 +105,7 @@ def _sync_all_years(
 
             with progress.track_progress(year, len(tracks)) as tracks_bar:
 
-                def on_status(message: str) -> None:
-                    progress.describe(tracks_bar, message)
-
-                def on_track(track: LikedTrack, added: bool) -> None:
-                    if added:
-                        progress.describe(
-                            tracks_bar, f'added "{track.name}" to playlist {name}'
-                        )
-                    else:
-                        progress.describe(
-                            tracks_bar, f'"{track.name}" was already in playlist {name}'
-                        )
-                    tracks_bar.update(1)
+                on_status, on_track = _bar_callbacks(tracks_bar, name)
 
                 result = sync_year(
                     library,
