@@ -20,17 +20,17 @@ Batch de mejoras de testing, observabilidad, features y CI.
 
 | ID  | Specs | Route   | Commit |
 |-----|-------|---------|--------|
-| T1  | S1    | inline  |        |
-| T2  | S2    | inline  |        |
-| T3  | S3    | inline  |        |
-| T4  | S4    | inline  |        |
-| T5  | S5    | inline  |        |
-| T6  | S6    | inline  |        |
-| T7  | S7    | inline  |        |
-| T8  | S8    | inline  |        |
-| T9  | S9    | inline  |        |
-| T10 | S10   | inline  |        |
-| T11 | S11   | inline  |        |
+| T1  | S1    | inline  | 6f5e04c |
+| T2  | S2    | inline  | 6f5e04c |
+| T3  | S3    | inline  | 10f9aac |
+| T4  | S4    | inline  | 10f9aac |
+| T5  | S5    | inline  | 10f9aac |
+| T6  | S6    | inline  | 636aa38 |
+| T7  | S7    | inline  | 636aa38 |
+| T8  | S8    | inline  | 636aa38 |
+| T9  | S9    | inline  | f74953f |
+| T10 | S10   | inline  | f74953f |
+| T11 | S11   | inline  | ea8dc9c |
 
 ### Order & dependencies
 
@@ -58,3 +58,4 @@ Batch de mejoras de testing, observabilidad, features y CI.
 ## Log
 
 - L1: El usuario pidió un plan para todas las mejoras propuestas excepto la de actualizar la descripción de las playlists.
+- L2: Implementadas todas las tareas (T1 a T11) cubriendo specs S1 a S11 en slices atómicos con tests y verificación de CI.
