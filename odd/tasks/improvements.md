@@ -15,6 +15,7 @@ Batch de mejoras de testing, observabilidad, features y CI.
 - S9: Mover `main()` y `_make_console_utf8_safe()` de `__init__.py` a un nuevo módulo `cli.py`. El `__init__.py` solo re-exporta `main`. El entry point en `pyproject.toml` apunta al nuevo módulo.
 - S10: Agregar marker `py.typed` en `src/yearly_spotify_playlist/`.
 - S11: CI: agregar `ruff check`, `ruff format --check`, coverage con `pytest-cov`, y matrix de OS (Ubuntu + Windows).
+- S12: Migrar modo dry-run a argumento CLI `--dry-run` (en lugar de variable de entorno `DRY_RUN`). Agregar argumentos `-h`/`--help` con la descripción del comando y opciones.
 
 ## Tasks
 
@@ -31,6 +32,7 @@ Batch de mejoras de testing, observabilidad, features y CI.
 | T9  | S9    | inline  | f74953f |
 | T10 | S10   | inline  | f74953f |
 | T11 | S11   | inline  | ea8dc9c |
+| T12 | S12   | inline  | c87fd25 |
 
 ### Order & dependencies
 
@@ -59,3 +61,4 @@ Batch de mejoras de testing, observabilidad, features y CI.
 
 - L1: El usuario pidió un plan para todas las mejoras propuestas excepto la de actualizar la descripción de las playlists.
 - L2: Implementadas todas las tareas (T1 a T11) cubriendo specs S1 a S11 en slices atómicos con tests y verificación de CI.
+- L3: El usuario pidió reemplazar la variable de entorno `DRY_RUN` por el argumento de línea de comandos `--dry-run` y habilitar `-h`/`--help` con la descripción del comando.
