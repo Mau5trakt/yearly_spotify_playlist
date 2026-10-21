@@ -139,23 +139,12 @@ def test_whitespace_only_market_becomes_none(monkeypatch):
     assert _load().market is None
 
 
-# -- New feature settings (DRY_RUN, SPOTIFY_YEARS, SPOTIFY_YEAR_FROM, BATCH_DELAY_SECONDS)
+# -- New feature settings (SPOTIFY_YEARS, SPOTIFY_YEAR_FROM, BATCH_DELAY_SECONDS)
 
 
-@pytest.mark.parametrize("val", ["1", "true", "TRUE", "yes", "YES", " true "])
-def test_load_settings_dry_run_truthy(monkeypatch, val):
-    _set_env(monkeypatch, {"DRY_RUN": val})
-    assert _load().dry_run is True
-
-
-@pytest.mark.parametrize("val", ["0", "false", "no", "", "other"])
-def test_load_settings_dry_run_falsy(monkeypatch, val):
-    _set_env(monkeypatch, {"DRY_RUN": val})
-    assert _load().dry_run is False
-
-
-def test_load_settings_dry_run_default_is_false(monkeypatch):
-    _set_env(monkeypatch)
+def test_load_settings_dry_run_is_default_false_and_ignores_env(monkeypatch):
+    _set_env(monkeypatch, {"DRY_RUN": "1"})
+    # dry_run is a CLI flag, not configured via environment variables
     assert _load().dry_run is False
 
 

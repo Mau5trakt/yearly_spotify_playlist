@@ -12,8 +12,8 @@ A single-purpose CLI: it walks through every song you liked on Spotify and creat
 The rule is simple: the `2023` playlist contains exactly the songs you saved during
 2023. Not one more, not one less.
 
-The program **takes no arguments**. All configuration comes from environment
-variables.
+Configuration comes from environment variables, with optional CLI flags for
+previewing (`--dry-run`) and help (`--help`).
 
 ```
 Connected as Enrique (enriqueal)
@@ -144,13 +144,25 @@ The `.env` is in `.gitignore`: **never commit it**.
 uv run yearly-spotify-playlist
 ```
 
-No arguments, no flags, no subcommands. It also works as a module:
+Preview changes without modifying Spotify:
+
+```bash
+uv run yearly-spotify-playlist --dry-run
+```
+
+Show available options and help:
+
+```bash
+uv run yearly-spotify-playlist --help
+```
+
+It also works as a module:
 
 ```bash
 uv run python -m yearly_spotify_playlist
 ```
 
-Exit code: `0` if everything succeeded, `1` if it failed.
+Exit code: `0` if everything succeeded, `1` if it failed (or `130` if interrupted).
 
 ## Environment Variables
 
@@ -161,7 +173,6 @@ Exit code: `0` if everything succeeded, `1` if it failed.
 | `SPOTIFY_REFRESH_TOKEN` | Yes | — | Long-lived access token. Without it there is no way to obtain a new one. |
 | `SPOTIFY_REDIRECT_URI` | No | `http://127.0.0.1:8888/callback` | Must match exactly the one registered in the dashboard. Only used during authorization. |
 | `SPOTIFY_MARKET` | No | *(empty)* | ISO 3166-1 alpha-2 country code (e.g. `ES`). Filters out content unavailable in your market. If left empty, your account's country is used. |
-| `DRY_RUN` | No | `0` | Set to `1` or `true` to preview playlist creations and track additions without modifying Spotify. |
 | `SPOTIFY_YEARS` | No | *(empty)* | Comma-separated list of explicit years to sync (e.g. `2023,2024`). Takes precedence over `SPOTIFY_YEAR_FROM`. |
 | `SPOTIFY_YEAR_FROM` | No | *(empty)* | Sync only tracks from this year onward (e.g. `2020`). |
 | `BATCH_DELAY_SECONDS` | No | `0.1` | Delay in seconds between track-adding batches for proactive rate limiting. |

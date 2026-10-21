@@ -6,21 +6,46 @@ lives here so that ``__init__.py`` stays a clean package facade.
 
 from __future__ import annotations
 
+import argparse
 import logging
 import sys
 import traceback
+from collections.abc import Sequence
+from dataclasses import replace
 
 from .config import load_settings
 from .log import PACKAGE, setup_logging
 from .runner import explain, run
 
 
-def main() -> int:
+def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
+    """Parse command-line arguments for the yearly-spotify-playlist script."""
+    parser = argparse.ArgumentParser(
+        prog="yearly-spotify-playlist",
+        description=(
+            "Create one Spotify playlist per year based on when you liked each song."
+        ),
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="preview playlist creations and track additions without modifying Spotify",
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: Sequence[str] | None = None) -> int:
     """Entry point for the ``yearly-spotify-playlist`` console script."""
     _make_console_utf8_safe()
     setup_logging()
     try:
-        settings = load_settings()
+        args = parse_args(argv)
+    except SystemExit as exc:
+        return exc.code if isinstance(exc.code, int) else (0 if exc.code is None else 1)
+
+    try:
+        settings = load_settings(dry_run=args.dry_run)
+        settings = replace(settings, dry_run=args.dry_run)
         results = run(settings)
     except KeyboardInterrupt:
         print("\nInterrupted.", file=sys.stderr)

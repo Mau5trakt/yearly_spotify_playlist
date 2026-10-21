@@ -44,12 +44,6 @@ class Settings:
         return " ".join(SCOPES)
 
 
-def _parse_bool(value: str | None) -> bool:
-    if not value:
-        return False
-    return value.strip().lower() in ("1", "true", "yes")
-
-
 def _parse_years(value: str | None) -> tuple[int, ...] | None:
     if not value or not value.strip():
         return None
@@ -93,7 +87,11 @@ def _parse_batch_delay(value: str | None) -> float:
     return val
 
 
-def load_settings(*, env_file: str | os.PathLike[str] | None = None) -> Settings:
+def load_settings(
+    *,
+    env_file: str | os.PathLike[str] | None = None,
+    dry_run: bool = False,
+) -> Settings:
     """Build :class:`Settings` from the environment.
 
     A ``.env`` file sitting next to the project is loaded first so that real
@@ -128,7 +126,7 @@ def load_settings(*, env_file: str | os.PathLike[str] | None = None) -> Settings
             os.getenv("SPOTIFY_REDIRECT_URI") or DEFAULT_REDIRECT_URI
         ).strip(),
         market=(os.getenv("SPOTIFY_MARKET") or "").strip() or None,
-        dry_run=_parse_bool(os.getenv("DRY_RUN")),
+        dry_run=dry_run,
         years=_parse_years(os.getenv("SPOTIFY_YEARS")),
         year_from=_parse_year_from(os.getenv("SPOTIFY_YEAR_FROM")),
         batch_delay_seconds=_parse_batch_delay(os.getenv("BATCH_DELAY_SECONDS")),

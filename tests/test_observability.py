@@ -70,7 +70,7 @@ def test_main_prints_traceback_when_debug(monkeypatch, capsys):
         ),
         patch("traceback.print_exc") as mock_traceback,
     ):
-        exit_code = main()
+        exit_code = main([])
 
     assert exit_code == 1
     mock_traceback.assert_called_once()
@@ -85,7 +85,7 @@ def test_main_omits_traceback_when_not_debug(monkeypatch, capsys):
         ),
         patch("traceback.print_exc") as mock_traceback,
     ):
-        exit_code = main()
+        exit_code = main([])
 
     assert exit_code == 1
     mock_traceback.assert_not_called()
