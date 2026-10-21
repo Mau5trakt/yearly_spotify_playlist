@@ -53,9 +53,23 @@ def run(settings: Settings) -> list[YearResult]:
     user_id = user["id"]
     progress.log(f"Connected as {user.get('display_name') or user_id} ({user_id})")
 
+    if settings.dry_run:
+        progress.log("Running in DRY-RUN mode: no changes will be made to Spotify.")
+
     grouped = _read_liked_tracks(library)
     if not grouped:
         raise RunError("No liked songs were found in your Spotify library.")
+
+    if settings.years is not None:
+        target_years = set(settings.years)
+        grouped = {y: tracks for y, tracks in grouped.items() if y in target_years}
+    elif settings.year_from is not None:
+        grouped = {
+            y: tracks for y, tracks in grouped.items() if y >= settings.year_from
+        }
+
+    if not grouped:
+        raise RunError("No liked songs match the specified year filter.")
 
     total_tracks = sum(len(tracks) for tracks in grouped.values())
     years = ", ".join(str(year) for year in sorted(grouped, reverse=True))
@@ -111,19 +125,26 @@ def _sync_all_years(
                     existing_playlist=existing.get(name),
                     on_status=on_status,
                     on_track=on_track,
+                    dry_run=settings.dry_run,
+                    batch_delay_seconds=settings.batch_delay_seconds,
                 )
 
             results.append(result)
-            progress.log(_summary_line(result))
+            progress.log(_summary_line(result, dry_run=settings.dry_run))
             years_bar.update(1)
 
     return results
 
 
-def _summary_line(result: YearResult) -> str:
-    origin = "created" if result.created else "reused"
-    parts = [f"  {result.year}: playlist {origin}"]
-    parts.append(f"{result.added} added")
+def _summary_line(result: YearResult, *, dry_run: bool = False) -> str:
+    if dry_run:
+        origin = "would create" if result.created else "would reuse"
+        added_text = f"{result.added} would be added"
+    else:
+        origin = "created" if result.created else "reused"
+        added_text = f"{result.added} added"
+
+    parts = [f"  {result.year}: playlist {origin}", added_text]
     if result.skipped:
         parts.append(f"{result.skipped} already there")
     return " | ".join(parts)

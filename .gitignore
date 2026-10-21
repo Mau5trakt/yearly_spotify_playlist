@@ -12,6 +12,8 @@ wheels/
 # Tests and tooling caches
 .pytest_cache/
 .ruff_cache/
+.coverage
+htmlcov/
 
 # Local secrets
 # `.env*` catches .env.backup, .env.local, .env.production too, which a plain
@@ -20,3 +22,4 @@ wheels/
 !.env.example
 .atl/
 .codegraph/
+odd/

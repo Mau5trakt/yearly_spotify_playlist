@@ -14,7 +14,7 @@ dependencies = [
 ]
 
 [project.scripts]
-yearly-spotify-playlist = "yearly_spotify_playlist:main"
+yearly-spotify-playlist = "yearly_spotify_playlist.cli:main"
 
 [build-system]
 requires = ["uv_build>=0.12.5,<0.13.0"]
@@ -23,6 +23,7 @@ build-backend = "uv_build"
 [dependency-groups]
 dev = [
     "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
     "ruff>=0.17.1",
 ]
 

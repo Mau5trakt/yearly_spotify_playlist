@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass
 
@@ -62,6 +63,8 @@ def sync_year(
     existing_playlist: dict | None,
     on_status: StatusCallback,
     on_track: TrackCallback,
+    dry_run: bool = False,
+    batch_delay_seconds: float = 0.0,
 ) -> YearResult:
     """Create (or reuse) the playlist for ``year`` and add whatever is missing.
 
@@ -76,17 +79,23 @@ def sync_year(
     name = playlist_name(year)
 
     if existing_playlist is None:
-        on_status(f"creating playlist {name}")
-        playlist_id = library.create_playlist(
-            name, description=playlist_description(year)
-        )
-        already_present: set[str] = set()
         created = True
+        if dry_run:
+            on_status(f"[dry-run] would create playlist {name}")
+            playlist_id = f"dry-run-{year}"
+            already_present: set[str] = set()
+        else:
+            on_status(f"creating playlist {name}")
+            playlist_id = library.create_playlist(
+                name, description=playlist_description(year)
+            )
+            already_present = set()
     else:
-        on_status(f"reusing playlist {name}")
+        created = False
         playlist_id = str(existing_playlist["id"])
         already_present = library.playlist_track_uris(playlist_id)
-        created = False
+        prefix = "[dry-run] would reuse" if dry_run else "reusing"
+        on_status(f"{prefix} playlist {name}")
 
     pending = select_new_tracks(tracks, already_present)
     added_uris = {track.uri for track in pending}
@@ -94,8 +103,15 @@ def sync_year(
     for batch in chunked(pending, ADD_BATCH_SIZE):
         extra = len(batch) - 1
         suffix = f" and {extra} more" if extra else ""
-        on_status(f'adding "{batch[0].name}"{suffix} to playlist {name}')
-        library.add_tracks(playlist_id, [track.uri for track in batch])
+        if dry_run:
+            on_status(
+                f'[dry-run] would add "{batch[0].name}"{suffix} to playlist {name}'
+            )
+        else:
+            on_status(f'adding "{batch[0].name}"{suffix} to playlist {name}')
+            library.add_tracks(playlist_id, [track.uri for track in batch])
+            if batch_delay_seconds > 0:
+                time.sleep(batch_delay_seconds)
         for track in batch:
             on_track(track, True)
 

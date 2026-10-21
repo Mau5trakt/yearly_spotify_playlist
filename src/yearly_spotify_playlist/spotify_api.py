@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Iterator
 from typing import Any
 
@@ -9,6 +10,8 @@ from spotipy import Spotify, SpotifyOAuth
 from spotipy.cache_handler import MemoryCacheHandler
 
 from .config import Settings
+
+logger = logging.getLogger(__name__)
 
 #: ``GET /me/tracks`` accepts at most 50 items per page.
 SAVED_TRACKS_PAGE_SIZE = 50
@@ -107,7 +110,15 @@ class SpotifyLibrary:
                 owner = playlist.get("owner") or {}
                 name = playlist.get("name")
                 if owner.get("id") == user_id and isinstance(name, str):
-                    owned.setdefault(name, playlist)
+                    if name in owned:
+                        logger.warning(
+                            "Found duplicate playlist %r (id %s); keeping existing (id %s)",
+                            name,
+                            playlist.get("id"),
+                            owned[name].get("id"),
+                        )
+                    else:
+                        owned[name] = playlist
             if not page.get("next"):
                 return owned
             offset += PLAYLIST_PAGE_SIZE

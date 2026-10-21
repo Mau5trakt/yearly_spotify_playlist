@@ -12,8 +12,8 @@ A single-purpose CLI: it walks through every song you liked on Spotify and creat
 The rule is simple: the `2023` playlist contains exactly the songs you saved during
 2023. Not one more, not one less.
 
-The program **takes no arguments**. All configuration comes from environment
-variables.
+Configuration comes from environment variables, with optional CLI flags for
+previewing (`--dry-run`) and help (`--help`).
 
 ```
 Connected as Enrique (enriqueal)
@@ -144,13 +144,25 @@ The `.env` is in `.gitignore`: **never commit it**.
 uv run yearly-spotify-playlist
 ```
 
-No arguments, no flags, no subcommands. It also works as a module:
+Preview changes without modifying Spotify:
+
+```bash
+uv run yearly-spotify-playlist --dry-run
+```
+
+Show available options and help:
+
+```bash
+uv run yearly-spotify-playlist --help
+```
+
+It also works as a module:
 
 ```bash
 uv run python -m yearly_spotify_playlist
 ```
 
-Exit code: `0` if everything succeeded, `1` if it failed.
+Exit code: `0` if everything succeeded, `1` if it failed (or `130` if interrupted).
 
 ## Environment Variables
 
@@ -161,6 +173,10 @@ Exit code: `0` if everything succeeded, `1` if it failed.
 | `SPOTIFY_REFRESH_TOKEN` | Yes | — | Long-lived access token. Without it there is no way to obtain a new one. |
 | `SPOTIFY_REDIRECT_URI` | No | `http://127.0.0.1:8888/callback` | Must match exactly the one registered in the dashboard. Only used during authorization. |
 | `SPOTIFY_MARKET` | No | *(empty)* | ISO 3166-1 alpha-2 country code (e.g. `ES`). Filters out content unavailable in your market. If left empty, your account's country is used. |
+| `SPOTIFY_YEARS` | No | *(empty)* | Comma-separated list of explicit years to sync (e.g. `2023,2024`). Takes precedence over `SPOTIFY_YEAR_FROM`. |
+| `SPOTIFY_YEAR_FROM` | No | *(empty)* | Sync only tracks from this year onward (e.g. `2020`). |
+| `BATCH_DELAY_SECONDS` | No | `0.1` | Delay in seconds between track-adding batches for proactive rate limiting. |
+| `LOG_LEVEL` | No | `WARNING` | Logging level (`DEBUG`, `INFO`, `WARNING`, `ERROR`). When set to `DEBUG`, full tracebacks are printed on error. |
 Real environment variables take precedence over the `.env`.
 
 > **Playlists are always public.** A Spotify app in Development Mode cannot create
@@ -184,7 +200,7 @@ It never deletes or unlikes anything.
 ## How It Works Internally
 
 ```
-main()                                    src/yearly_spotify_playlist/__init__.py
+main()                                    src/yearly_spotify_playlist/cli.py
  └─ run(settings)                         runner.py
      ├─ SpotifyLibrary.current_user()            → GET  /me
      ├─ _read_liked_tracks()                     → GET  /me/tracks?offset=N   (paginated)
@@ -263,10 +279,13 @@ untouched.
 
 ```
 src/yearly_spotify_playlist/
-├── __init__.py          main(): entry point for the console script
+├── __init__.py          facade: re-exports main()
 ├── __main__.py          python -m yearly_spotify_playlist
 ├── auth.py              interactive authorization, run once
+├── cli.py               CLI entry point, presentation, and exit codes
 ├── config.py            environment variables → Settings
+├── log.py               logging setup with TqdmHandler
+├── py.typed             PEP 561 typing marker
 ├── spotify_api.py       authenticated client + the exact endpoints
 ├── liked_tracks.py      added_at parsing and year grouping
 ├── yearly_playlists.py  create/reuse playlist and add in batches
@@ -274,7 +293,12 @@ src/yearly_spotify_playlist/
 └── runner.py            orchestration of the run
 
 tests/
+├── test_cli.py
+├── test_config.py
 ├── test_liked_tracks.py
+├── test_observability.py
+├── test_runner.py
+├── test_spotify_api.py
 └── test_yearly_playlists.py
 ```
 
