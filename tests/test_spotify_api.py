@@ -3,8 +3,6 @@ from __future__ import annotations
 from typing import Any
 from unittest.mock import MagicMock, call
 
-import pytest
-
 from yearly_spotify_playlist.spotify_api import (
     PLAYLIST_ITEMS_PAGE_SIZE,
     PLAYLIST_PAGE_SIZE,
@@ -13,7 +11,9 @@ from yearly_spotify_playlist.spotify_api import (
 )
 
 
-def _library(client: MagicMock | None = None, market: str | None = None) -> SpotifyLibrary:
+def _library(
+    client: MagicMock | None = None, market: str | None = None
+) -> SpotifyLibrary:
     return SpotifyLibrary(client or MagicMock(), market=market)
 
 
@@ -44,7 +44,9 @@ def test_iter_saved_track_pages_yields_single_page():
 
     assert pages == [page]
     client.current_user_saved_tracks.assert_called_once_with(
-        limit=SAVED_TRACKS_PAGE_SIZE, offset=0, market="ES",
+        limit=SAVED_TRACKS_PAGE_SIZE,
+        offset=0,
+        market="ES",
     )
 
 
@@ -70,7 +72,9 @@ def test_iter_saved_track_pages_passes_market_none():
     list(lib.iter_saved_track_pages())
 
     client.current_user_saved_tracks.assert_called_once_with(
-        limit=SAVED_TRACKS_PAGE_SIZE, offset=0, market=None,
+        limit=SAVED_TRACKS_PAGE_SIZE,
+        offset=0,
+        market=None,
     )
 
 
@@ -174,7 +178,9 @@ def test_playlist_track_uris_collects_uris():
 
     assert uris == {"spotify:track:a", "spotify:track:b"}
     client.playlist_items.assert_called_once_with(
-        "pid", limit=PLAYLIST_ITEMS_PAGE_SIZE, offset=0,
+        "pid",
+        limit=PLAYLIST_ITEMS_PAGE_SIZE,
+        offset=0,
     )
 
 
@@ -231,7 +237,9 @@ def test_create_playlist_returns_id():
 
     assert pid == "new-id"
     client.current_user_playlist_create.assert_called_once_with(
-        name="2023", public=True, description="Liked songs in 2023",
+        name="2023",
+        public=True,
+        description="Liked songs in 2023",
     )
 
 

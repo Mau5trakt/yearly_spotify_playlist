@@ -6,15 +6,19 @@ lives here so that ``__init__.py`` stays a clean package facade.
 
 from __future__ import annotations
 
+import logging
 import sys
+import traceback
 
 from .config import load_settings
+from .log import PACKAGE, setup_logging
 from .runner import explain, run
 
 
 def main() -> int:
     """Entry point for the ``yearly-spotify-playlist`` console script."""
     _make_console_utf8_safe()
+    setup_logging()
     try:
         settings = load_settings()
         results = run(settings)
@@ -22,6 +26,8 @@ def main() -> int:
         print("\nInterrupted.", file=sys.stderr)
         return 130
     except Exception as exc:  # noqa: BLE001 - the CLI turns anything into advice
+        if logging.getLogger(PACKAGE).isEnabledFor(logging.DEBUG):
+            traceback.print_exc()
         print(explain(exc), file=sys.stderr)
         return 1
 
@@ -41,5 +47,5 @@ def _make_console_utf8_safe() -> None:
         if reconfigure is not None:
             try:
                 reconfigure(errors="replace")
-            except (ValueError, OSError):  # pragma: no cover - detached stream
+            except ValueError, OSError:  # pragma: no cover - detached stream
                 pass
