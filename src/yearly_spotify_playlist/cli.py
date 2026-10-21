@@ -32,7 +32,9 @@ def main() -> int:
         return 1
 
     total_added = sum(result.added for result in results)
-    print(f"Done: {len(results)} yearly playlists, {total_added} songs added.")
+    action = "would be added" if settings.dry_run else "added"
+    prefix = "Done (dry-run)" if settings.dry_run else "Done"
+    print(f"{prefix}: {len(results)} yearly playlists, {total_added} songs {action}.")
     return 0
 
 

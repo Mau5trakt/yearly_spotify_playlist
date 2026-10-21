@@ -139,6 +139,75 @@ def test_whitespace_only_market_becomes_none(monkeypatch):
     assert _load().market is None
 
 
+# -- New feature settings (DRY_RUN, SPOTIFY_YEARS, SPOTIFY_YEAR_FROM, BATCH_DELAY_SECONDS)
+
+
+@pytest.mark.parametrize("val", ["1", "true", "TRUE", "yes", "YES", " true "])
+def test_load_settings_dry_run_truthy(monkeypatch, val):
+    _set_env(monkeypatch, {"DRY_RUN": val})
+    assert _load().dry_run is True
+
+
+@pytest.mark.parametrize("val", ["0", "false", "no", "", "other"])
+def test_load_settings_dry_run_falsy(monkeypatch, val):
+    _set_env(monkeypatch, {"DRY_RUN": val})
+    assert _load().dry_run is False
+
+
+def test_load_settings_dry_run_default_is_false(monkeypatch):
+    _set_env(monkeypatch)
+    assert _load().dry_run is False
+
+
+def test_load_settings_parses_years_list(monkeypatch):
+    _set_env(monkeypatch, {"SPOTIFY_YEARS": "2022, 2023, 2024"})
+    assert _load().years == (2022, 2023, 2024)
+
+
+def test_load_settings_parses_single_year(monkeypatch):
+    _set_env(monkeypatch, {"SPOTIFY_YEARS": "2024"})
+    assert _load().years == (2024,)
+
+
+def test_load_settings_invalid_years_raises(monkeypatch):
+    _set_env(monkeypatch, {"SPOTIFY_YEARS": "2024, not-a-year"})
+    with pytest.raises(ConfigError, match="invalid SPOTIFY_YEARS"):
+        _load()
+
+
+def test_load_settings_parses_year_from(monkeypatch):
+    _set_env(monkeypatch, {"SPOTIFY_YEAR_FROM": "2021"})
+    assert _load().year_from == 2021
+
+
+def test_load_settings_invalid_year_from_raises(monkeypatch):
+    _set_env(monkeypatch, {"SPOTIFY_YEAR_FROM": "abc"})
+    with pytest.raises(ConfigError, match="invalid SPOTIFY_YEAR_FROM"):
+        _load()
+
+
+def test_load_settings_batch_delay_default(monkeypatch):
+    _set_env(monkeypatch)
+    assert _load().batch_delay_seconds == 0.1
+
+
+def test_load_settings_batch_delay_custom(monkeypatch):
+    _set_env(monkeypatch, {"BATCH_DELAY_SECONDS": "0.5"})
+    assert _load().batch_delay_seconds == 0.5
+
+
+def test_load_settings_batch_delay_negative_raises(monkeypatch):
+    _set_env(monkeypatch, {"BATCH_DELAY_SECONDS": "-1"})
+    with pytest.raises(ConfigError, match="invalid BATCH_DELAY_SECONDS"):
+        _load()
+
+
+def test_load_settings_batch_delay_invalid_raises(monkeypatch):
+    _set_env(monkeypatch, {"BATCH_DELAY_SECONDS": "abc"})
+    with pytest.raises(ConfigError, match="invalid BATCH_DELAY_SECONDS"):
+        _load()
+
+
 # -- Settings.scope property ---------------------------------------------------
 
 

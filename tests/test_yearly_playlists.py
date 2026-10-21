@@ -44,7 +44,14 @@ class FakeLibrary:
         self.added.append((playlist_id, uris))
 
 
-def _run(library, year, tracks, existing_playlist=None):
+def _run(
+    library,
+    year,
+    tracks,
+    existing_playlist=None,
+    dry_run=False,
+    batch_delay_seconds=0.0,
+):
     statuses: list[str] = []
     settled: list[tuple[str, bool]] = []
     result = sync_year(
@@ -54,6 +61,8 @@ def _run(library, year, tracks, existing_playlist=None):
         existing_playlist=existing_playlist,
         on_status=statuses.append,
         on_track=lambda t, added: settled.append((t.name, added)),
+        dry_run=dry_run,
+        batch_delay_seconds=batch_delay_seconds,
     )
     return result, statuses, settled
 
@@ -144,3 +153,71 @@ def test_sync_year_batches_at_the_api_limit():
     assert len(settled) == count
     assert all(len(uris) <= ADD_BATCH_SIZE for _, uris in library.added)
     assert "and 99 more" in statuses[1]
+
+
+def test_sync_year_dry_run_creates_no_playlist_and_adds_no_tracks():
+    library = FakeLibrary()
+    tracks = _tracks(3)
+
+    result, statuses, settled = _run(library, 2023, tracks, dry_run=True)
+
+    assert library.created == []
+    assert library.added == []
+    assert result.created is True
+    assert (result.added, result.skipped) == (3, 0)
+    assert all(added for _, added in settled)
+    assert statuses[0] == "[dry-run] would create playlist 2023"
+    assert '[dry-run] would add "Song 0" and 2 more to playlist 2023' in statuses
+
+
+def test_sync_year_dry_run_reuses_playlist_and_adds_no_tracks():
+    library = FakeLibrary(existing_items={"spotify:track:0", "spotify:track:1"})
+    tracks = _tracks(3)
+
+    result, statuses, _ = _run(
+        library,
+        2023,
+        tracks,
+        existing_playlist={"id": "old-id"},
+        dry_run=True,
+    )
+
+    assert library.created == []
+    assert library.contents_read == ["old-id"]
+    assert library.added == []
+    assert result.created is False
+    assert (result.added, result.skipped) == (1, 2)
+    assert statuses[0] == "[dry-run] would reuse playlist 2023"
+
+
+def test_sync_year_batch_delay_sleeps_between_batches(monkeypatch):
+    sleeps: list[float] = []
+    monkeypatch.setattr("time.sleep", sleeps.append)
+
+    count = ADD_BATCH_SIZE * 2 + 5
+    library = FakeLibrary()
+
+    result, _, _ = _run(library, 2023, _tracks(count), batch_delay_seconds=0.25)
+
+    assert result.added == count
+    assert sleeps == [0.25, 0.25, 0.25]
+
+
+def test_sync_year_batch_delay_zero_does_not_sleep(monkeypatch):
+    sleeps: list[float] = []
+    monkeypatch.setattr("time.sleep", sleeps.append)
+
+    library = FakeLibrary()
+    _run(library, 2023, _tracks(5), batch_delay_seconds=0.0)
+
+    assert sleeps == []
+
+
+def test_sync_year_dry_run_does_not_sleep(monkeypatch):
+    sleeps: list[float] = []
+    monkeypatch.setattr("time.sleep", sleeps.append)
+
+    library = FakeLibrary()
+    _run(library, 2023, _tracks(5), dry_run=True, batch_delay_seconds=0.5)
+
+    assert sleeps == []
