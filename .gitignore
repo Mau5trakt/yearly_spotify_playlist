@@ -23,3 +23,7 @@ htmlcov/
 .atl/
 .codegraph/
 odd/
+
+# Stats cache
+.stats_cache.json
+stats_cache.json

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from spotipy import SpotifyException
@@ -11,6 +12,13 @@ from . import progress
 from .config import ConfigError, Settings
 from .liked_tracks import LikedTrack, group_by_year
 from .spotify_api import SpotifyLibrary, build_spotify
+from .stats import (
+    DEFAULT_CACHE_PATH,
+    format_stats_chart,
+    load_stats_cache,
+    save_stats_cache,
+    stats_from_tracks,
+)
 from .yearly_playlists import (
     StatusCallback,
     TrackCallback,
@@ -45,7 +53,11 @@ class RunError(RuntimeError):
     """Raised when the run cannot continue and the user needs to act."""
 
 
-def run(settings: Settings) -> list[YearResult]:
+def run(
+    settings: Settings,
+    *,
+    cache_path: Path | str = DEFAULT_CACHE_PATH,
+) -> list[YearResult]:
     """Execute the single purpose of this CLI and return the per-year results."""
     library = SpotifyLibrary(build_spotify(settings), market=settings.market)
 
@@ -59,6 +71,10 @@ def run(settings: Settings) -> list[YearResult]:
     grouped = _read_liked_tracks(library)
     if not grouped:
         raise RunError("No liked songs were found in your Spotify library.")
+
+    # Save stats cache from the collected liked songs
+    all_tracks = [t for tracks in grouped.values() for t in tracks]
+    save_stats_cache(stats_from_tracks(all_tracks), path=cache_path)
 
     if settings.years is not None:
         target_years = set(settings.years)
@@ -79,6 +95,30 @@ def run(settings: Settings) -> list[YearResult]:
 
     existing = library.owned_playlists_by_name(user_id)
     return _sync_all_years(library, grouped, existing, settings)
+
+
+def get_stats_chart(
+    settings: Settings,
+    *,
+    cache_path: Path | str = DEFAULT_CACHE_PATH,
+    force_update: bool = False,
+) -> str:
+    """Return formatted stats chart, reading from 1h cache or fetching from Spotify."""
+    if not force_update:
+        cached = load_stats_cache(path=cache_path)
+        if cached is not None:
+            return format_stats_chart(cached)
+
+    library = SpotifyLibrary(build_spotify(settings), market=settings.market)
+    user = library.current_user()
+    user_id = user["id"]
+    progress.log(f"Connected as {user.get('display_name') or user_id} ({user_id})")
+
+    grouped = _read_liked_tracks(library)
+    all_tracks = [t for tracks in grouped.values() for t in tracks]
+    stats = stats_from_tracks(all_tracks)
+    save_stats_cache(stats, path=cache_path)
+    return format_stats_chart(stats)
 
 
 def _read_liked_tracks(library: SpotifyLibrary) -> dict[int, list[LikedTrack]]:

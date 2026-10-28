@@ -150,6 +150,26 @@ Preview changes without modifying Spotify:
 uv run yearly-spotify-playlist --dry-run
 ```
 
+Display horizontal bar chart statistics of liked songs per year without modifying playlists:
+
+```bash
+uv run yearly-spotify-playlist --stats
+# or
+uv run yearly-spotify-playlist -s
+```
+
+Force a fresh update from Spotify, ignoring the local 1-hour cache:
+
+```bash
+uv run yearly-spotify-playlist -su
+# or
+uv run yearly-spotify-playlist -s u
+# or
+uv run yearly-spotify-playlist --stats --update
+```
+
+The stats command uses a local 1-hour cache (`stats_cache.json`, base64-encoded and gitignored) to avoid redundant Spotify requests. If the cache is expired, missing, or the `u` / `--update` flag is passed, it fetches fresh liked songs and refreshes the cache.
+
 Show available options and help:
 
 ```bash

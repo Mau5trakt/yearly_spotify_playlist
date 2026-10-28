@@ -15,7 +15,8 @@ from dataclasses import replace
 
 from .config import load_settings
 from .log import PACKAGE, setup_logging
-from .runner import explain, run
+from .runner import explain, get_stats_chart, run
+from .stats import DEFAULT_CACHE_PATH
 
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
@@ -31,7 +32,34 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="preview playlist creations and track additions without modifying Spotify",
     )
-    return parser.parse_args(argv)
+    parser.add_argument(
+        "-s",
+        "--stats",
+        nargs="?",
+        const=True,
+        default=False,
+        metavar="u",
+        help=(
+            "display statistics of liked songs per year without modifying playlists "
+            "(pass 'u' or use -u to force refresh from Spotify)"
+        ),
+    )
+    parser.add_argument(
+        "-u",
+        "--update",
+        action="store_true",
+        help="force refresh of liked songs from Spotify, bypassing the 1-hour cache",
+    )
+    args = parser.parse_args(argv)
+    if isinstance(args.stats, str) and args.stats.lower() not in (
+        "u",
+        "update",
+        "refresh",
+    ):
+        parser.error(
+            f"invalid value for -s/--stats: {args.stats!r} (expected 'u' or 'update')"
+        )
+    return args
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -46,6 +74,21 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         settings = load_settings(dry_run=args.dry_run)
         settings = replace(settings, dry_run=args.dry_run)
+        force_update = bool(
+            args.update
+            or (
+                isinstance(args.stats, str)
+                and args.stats.lower() in ("u", "update", "refresh")
+            )
+        )
+        if args.stats:
+            chart = get_stats_chart(
+                settings,
+                cache_path=DEFAULT_CACHE_PATH,
+                force_update=force_update,
+            )
+            print(chart)
+            return 0
         results = run(settings)
     except KeyboardInterrupt:
         print("\nInterrupted.", file=sys.stderr)
