@@ -81,7 +81,7 @@ def test_format_stats_chart_ascending_order_and_header():
     chart = format_stats_chart(counts, terminal_width=80)
     lines = [line for line in chart.splitlines() if line.strip()]
 
-    assert "Canciones por año" in lines[0]
+    assert "Songs per year" in lines[0]
     assert "2014" in lines[1]
     assert "2019" in lines[2]
     assert "150" in lines[1]
@@ -89,6 +89,7 @@ def test_format_stats_chart_ascending_order_and_header():
     assert any(c in lines[1] for c in ("█", "▌", "▎", "▍", "▋", "▊", "▉"))
     assert any(c in lines[2] for c in ("█", "▌", "▎", "▍", "▋", "▊", "▉"))
     assert lines[2].count("█") > lines[1].count("█")
+    assert "You have liked 600 songs in Spotify." in chart
     for line in lines:
         assert len(line) <= 80
 
@@ -99,14 +100,15 @@ def test_format_stats_chart_narrow_terminal_fallback():
     chart = format_stats_chart(counts, terminal_width=15)
     lines = chart.splitlines()
 
-    assert lines[0] == "Canciones por año"
+    assert lines[0] == "Songs per year"
     assert lines[1] == "2014 150"
     assert lines[2] == "2019 450"
+    assert "You have liked 600 songs in Spotify." in chart
 
 
 def test_format_stats_chart_empty():
     chart = format_stats_chart({})
-    assert chart == "Canciones por año\nNo hay canciones registradas."
+    assert chart == "Songs per year\nNo saved tracks found."
 
 
 def test_cli_parse_args_stats_flag():
@@ -162,7 +164,7 @@ def test_cli_stats_reads_valid_cache_without_calling_spotify(tmp_path: Path, cap
     assert exit_code == 0
     mock_spotify.assert_not_called()
     captured = capsys.readouterr()
-    assert "Canciones por año" in captured.out
+    assert "Songs per year" in captured.out
     assert "2014" in captured.out
     assert "2018" in captured.out
 
@@ -195,21 +197,21 @@ def test_cli_stats_fetches_when_cache_missing_and_saves_cache(tmp_path: Path, ca
     assert cache_file.exists()
     assert load_stats_cache(path=cache_file) == {2021: 2}
     captured = capsys.readouterr()
-    assert "Canciones por año" in captured.out
+    assert "Songs per year" in captured.out
     assert "2021" in captured.out
 
 
 def test_format_stats_chart_default_terminal_width():
     counts = {2014: 100}
     chart = format_stats_chart(counts)
-    assert "Canciones por año" in chart
+    assert "Songs per year" in chart
     assert "2014" in chart
 
 
 def test_format_stats_chart_zero_and_small_counts():
     counts = {2015: 0, 2016: 1, 2020: 10000}
     chart = format_stats_chart(counts, terminal_width=80)
-    lines = chart.splitlines()
+    lines = [line for line in chart.splitlines() if line.strip()]
     assert "2015" in lines[1]
     assert "2016" in lines[2]
     assert "2020" in lines[3]

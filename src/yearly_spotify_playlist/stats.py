@@ -99,9 +99,9 @@ def format_stats_chart(
     If terminal width is too narrow to display a meaningful bar (at least
     ``MIN_BAR_WIDTH`` chars), falls back to a simple list of year and count.
     """
-    header = "Canciones por año"
+    header = "Songs per year"
     if not counts:
-        return f"{header}\nNo hay canciones registradas."
+        return f"{header}\nNo saved tracks found."
 
     sorted_years = sorted(counts.keys())
     if terminal_width is None:
@@ -115,10 +115,14 @@ def format_stats_chart(
     non_bar_space = year_col_width + max_count_len + 6
     available_bar_width = terminal_width - non_bar_space
 
+    total = sum(counts.values())
+    song_word = "song" if total == 1 else "songs"
+    summary_line = f"You have liked {total} {song_word} in Spotify."
+
     if available_bar_width < MIN_BAR_WIDTH:
         # Fallback to simple list
         lines = [f"{year} {counts[year]}" for year in sorted_years]
-        return f"{header}\n" + "\n".join(lines)
+        return f"{header}\n" + "\n".join(lines) + f"\n\n{summary_line}"
 
     table = Table(
         title=header,
@@ -127,7 +131,9 @@ def format_stats_chart(
         padding=(0, 1),
     )
     effective_max = max(max_count, 1)
-    for year in sorted_years:
+    for idx, year in enumerate(sorted_years):
+        if idx > 0:
+            table.add_row("", "", "")
         count = counts[year]
         bar = Bar(
             size=effective_max,
@@ -141,4 +147,7 @@ def format_stats_chart(
     console = Console(width=terminal_width, legacy_windows=False)
     with console.capture() as capture:
         console.print(table)
+        console.print(
+            f"\n[bold]You have liked [green]{total}[/green] {song_word} in Spotify.[/bold]"
+        )
     return capture.get().rstrip("\n")
