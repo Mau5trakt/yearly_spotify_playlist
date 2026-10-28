@@ -116,6 +116,6 @@ def _make_console_utf8_safe() -> None:
         reconfigure = getattr(stream, "reconfigure", None)
         if reconfigure is not None:
             try:
-                reconfigure(errors="replace")
+                reconfigure(encoding="utf-8", errors="replace")
             except ValueError, OSError:  # pragma: no cover - detached stream
                 pass

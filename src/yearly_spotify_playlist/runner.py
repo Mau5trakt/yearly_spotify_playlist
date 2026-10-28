@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Any
 
 from spotipy import SpotifyException
-from tqdm import tqdm
 
 from . import progress
 from .config import ConfigError, Settings
@@ -28,7 +27,7 @@ from .yearly_playlists import (
 )
 
 
-def _bar_callbacks(bar: tqdm, name: str) -> tuple[StatusCallback, TrackCallback]:
+def _bar_callbacks(bar: Any, name: str) -> tuple[StatusCallback, TrackCallback]:
     """Build the callbacks that drive the inner bar for one year playlist.
 
     ``bar`` and ``name`` are bound as parameters here instead of being captured

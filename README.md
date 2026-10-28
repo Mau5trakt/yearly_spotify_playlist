@@ -309,7 +309,8 @@ src/yearly_spotify_playlist/
 ├── spotify_api.py       authenticated client + the exact endpoints
 ├── liked_tracks.py      added_at parsing and year grouping
 ├── yearly_playlists.py  create/reuse playlist and add in batches
-├── progress.py          tqdm progress bars
+├── stats.py             statistics calculation, base64 cache, and rich horizontal bar chart
+├── progress.py          rich progress bars and status reporting
 └── runner.py            orchestration of the run
 
 tests/
@@ -319,6 +320,7 @@ tests/
 ├── test_observability.py
 ├── test_runner.py
 ├── test_spotify_api.py
+├── test_stats.py
 └── test_yearly_playlists.py
 ```
 

@@ -79,19 +79,16 @@ def test_cache_nonexistent_returns_none(tmp_path: Path):
 def test_format_stats_chart_ascending_order_and_header():
     counts = {2019: 450, 2014: 150}
     chart = format_stats_chart(counts, terminal_width=80)
-    lines = chart.splitlines()
+    lines = [line for line in chart.splitlines() if line.strip()]
 
-    assert lines[0] == "Canciones por año"
-    assert lines[1].startswith("2014 ")
-    assert lines[2].startswith("2019 ")
-    assert lines[1].endswith(" 150")
-    assert lines[2].endswith(" 450")
-    assert "-" in lines[1]
-    assert "-" in lines[2]
-    # 2019 should have a longer bar than 2014
-    bar_2014 = lines[1].split()[1]
-    bar_2019 = lines[2].split()[1]
-    assert len(bar_2019) > len(bar_2014)
+    assert "Canciones por año" in lines[0]
+    assert "2014" in lines[1]
+    assert "2019" in lines[2]
+    assert "150" in lines[1]
+    assert "450" in lines[2]
+    assert any(c in lines[1] for c in ("█", "▌", "▎", "▍", "▋", "▊", "▉"))
+    assert any(c in lines[2] for c in ("█", "▌", "▎", "▍", "▋", "▊", "▉"))
+    assert lines[2].count("█") > lines[1].count("█")
     for line in lines:
         assert len(line) <= 80
 

@@ -10,6 +10,10 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
+from rich.bar import Bar
+from rich.console import Console
+from rich.table import Table
+
 from .liked_tracks import LikedTrack
 
 DEFAULT_CACHE_PATH = Path("stats_cache.json")
@@ -88,9 +92,9 @@ def load_stats_cache(
 def format_stats_chart(
     counts: dict[int, int],
     terminal_width: int | None = None,
-    bar_char: str = "-",
+    bar_color: str = "green",
 ) -> str:
-    """Render a horizontal bar chart of songs per year in ascending order.
+    """Render a horizontal bar chart of songs per year in ascending order using Rich.
 
     If terminal width is too narrow to display a meaningful bar (at least
     ``MIN_BAR_WIDTH`` chars), falls back to a simple list of year and count.
@@ -107,9 +111,8 @@ def format_stats_chart(
     max_count_len = max(len(str(c)) for c in counts.values())
     year_col_width = max(len(str(y)) for y in sorted_years)
 
-    # Line layout: "<year> <bar> <count>"
-    # Non-bar space needed: year + 1 space + 1 space + count
-    non_bar_space = year_col_width + 1 + 1 + max_count_len
+    # In Table with padding=(0, 1), non-bar width: year + count + 6 chars for padding/borders
+    non_bar_space = year_col_width + max_count_len + 6
     available_bar_width = terminal_width - non_bar_space
 
     if available_bar_width < MIN_BAR_WIDTH:
@@ -117,16 +120,25 @@ def format_stats_chart(
         lines = [f"{year} {counts[year]}" for year in sorted_years]
         return f"{header}\n" + "\n".join(lines)
 
-    lines = []
+    table = Table(
+        title=header,
+        show_header=False,
+        box=None,
+        padding=(0, 1),
+    )
+    effective_max = max(max_count, 1)
     for year in sorted_years:
         count = counts[year]
-        if max_count > 0:
-            bar_len = round((count / max_count) * available_bar_width)
-            if count > 0 and bar_len == 0:
-                bar_len = 1
-        else:
-            bar_len = 0
-        bar = bar_char * bar_len
-        lines.append(f"{year} {bar} {count}")
+        bar = Bar(
+            size=effective_max,
+            begin=0,
+            end=count,
+            width=available_bar_width,
+            color=bar_color,
+        )
+        table.add_row(str(year), bar, str(count))
 
-    return f"{header}\n" + "\n".join(lines)
+    console = Console(width=terminal_width, legacy_windows=False)
+    with console.capture() as capture:
+        console.print(table)
+    return capture.get().rstrip("\n")
