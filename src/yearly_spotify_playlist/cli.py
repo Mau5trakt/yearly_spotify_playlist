@@ -13,6 +13,7 @@ import traceback
 from collections.abc import Sequence
 from dataclasses import replace
 
+from . import progress
 from .config import load_settings
 from .log import PACKAGE, setup_logging
 from .runner import explain, get_stats_chart, run
@@ -102,7 +103,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     total_added = sum(result.added for result in results)
     action = "would be added" if settings.dry_run else "added"
     prefix = "Done (dry-run)" if settings.dry_run else "Done"
-    print(f"{prefix}: {len(results)} yearly playlists, {total_added} songs {action}.")
+    progress.log(
+        f"{prefix}: {len(results)} yearly playlists, {total_added} songs {action}."
+    )
     return 0
 
 

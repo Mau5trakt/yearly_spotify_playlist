@@ -42,10 +42,12 @@ class ProgressBar:
         task_id: TaskID,
         *,
         manage_progress: bool = False,
+        on_exit: Any = None,
     ) -> None:
         self._progress = progress
         self._task_id = task_id
         self._manage_progress = manage_progress
+        self._on_exit = on_exit
 
     def update(self, advance: int = 1) -> None:
         self._progress.update(self._task_id, advance=advance)
@@ -57,7 +59,8 @@ class ProgressBar:
         global _active_progress
         if self._manage_progress:
             _active_progress = self._progress
-            self._progress.start()
+            if not self._progress.live.is_started:
+                self._progress.start()
         return self
 
     def __exit__(
@@ -67,7 +70,9 @@ class ProgressBar:
         exc_tb: TracebackType | None,
     ) -> None:
         global _active_progress
-        if self._manage_progress:
+        if self._on_exit is not None:
+            self._on_exit(exc_type, exc_val, exc_tb)
+        elif self._manage_progress:
             self._progress.stop()
             _active_progress = None
         else:
@@ -106,17 +111,24 @@ def year_progress(total_years: int) -> ProgressBar:
     task_id = _shared_sync_progress.add_task(
         "Yearly playlists", total=total_years, status=""
     )
-    bar = ProgressBar(_shared_sync_progress, task_id, manage_progress=False)
 
-    def _on_exit(exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+    def _on_exit(
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
         global _shared_sync_progress, _active_progress
         if _shared_sync_progress is not None:
             _shared_sync_progress.stop()
             _shared_sync_progress = None
             _active_progress = None
 
-    bar.__exit__ = _on_exit  # type: ignore[assignment]
-    return bar
+    return ProgressBar(
+        _shared_sync_progress,
+        task_id,
+        manage_progress=False,
+        on_exit=_on_exit,
+    )
 
 
 def track_progress(year: int, total_tracks: int) -> ProgressBar:
