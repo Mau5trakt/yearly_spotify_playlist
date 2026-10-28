@@ -16,6 +16,7 @@ from dataclasses import replace
 from . import progress
 from .config import load_settings
 from .log import PACKAGE, setup_logging
+from .progress import make_console_utf8_safe
 from .runner import explain, get_stats_chart, run
 from .stats import DEFAULT_CACHE_PATH
 
@@ -88,7 +89,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 cache_path=DEFAULT_CACHE_PATH,
                 force_update=force_update,
             )
-            print(chart)
+            progress.log(chart)
             return 0
         results = run(settings)
     except KeyboardInterrupt:
@@ -112,16 +113,4 @@ def main(argv: Sequence[str] | None = None) -> int:
     return 0
 
 
-def _make_console_utf8_safe() -> None:
-    """Never crash printing Spanish accents on a legacy Windows code page.
-
-    The console keeps its own encoding; only unencodable characters degrade to a
-    replacement mark instead of raising ``UnicodeEncodeError``.
-    """
-    for stream in (sys.stdout, sys.stderr):
-        reconfigure = getattr(stream, "reconfigure", None)
-        if reconfigure is not None:
-            try:
-                reconfigure(encoding="utf-8", errors="replace")
-            except ValueError, OSError:  # pragma: no cover - detached stream
-                pass
+_make_console_utf8_safe = make_console_utf8_safe

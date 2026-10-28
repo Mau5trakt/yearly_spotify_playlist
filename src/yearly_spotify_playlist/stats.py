@@ -11,8 +11,9 @@ from pathlib import Path
 from typing import Any
 
 from rich.bar import Bar
-from rich.console import Console
+from rich.console import Console, Group
 from rich.table import Table
+from rich.text import Text
 
 from .liked_tracks import LikedTrack
 
@@ -89,16 +90,12 @@ def load_stats_cache(
         return None
 
 
-def format_stats_chart(
+def get_stats_renderable(
     counts: dict[int, int],
     terminal_width: int | None = None,
     bar_color: str = "green",
-) -> str:
-    """Render a horizontal bar chart of songs per year in ascending order using Rich.
-
-    If terminal width is too narrow to display a meaningful bar (at least
-    ``MIN_BAR_WIDTH`` chars), falls back to a simple list of year and count.
-    """
+) -> Any:
+    """Return a Rich renderable (Group, Table, or Text) for the stats chart."""
     header = "Songs per year"
     if not counts:
         return f"{header}\nNo saved tracks found."
@@ -111,25 +108,28 @@ def format_stats_chart(
     max_count_len = max(len(str(c)) for c in counts.values())
     year_col_width = max(len(str(y)) for y in sorted_years)
 
-    # In Table with padding=(0, 1), non-bar width: year + count + 6 chars for padding/borders
     non_bar_space = year_col_width + max_count_len + 6
-    available_bar_width = terminal_width - non_bar_space
-
     total = sum(counts.values())
     song_word = "song" if total == 1 else "songs"
     summary_line = f"You have liked {total} {song_word} in Spotify."
 
-    if available_bar_width < MIN_BAR_WIDTH:
+    if terminal_width - non_bar_space < MIN_BAR_WIDTH:
         # Fallback to simple list
         lines = [f"{year} {counts[year]}" for year in sorted_years]
         return f"{header}\n" + "\n".join(lines) + f"\n\n{summary_line}"
 
+    available_bar_width = max(MIN_BAR_WIDTH, min(terminal_width - non_bar_space, 50))
     table = Table(
         title=header,
         show_header=False,
         box=None,
         padding=(0, 1),
+        collapse_padding=True,
     )
+    table.add_column(no_wrap=True)
+    table.add_column(no_wrap=True)
+    table.add_column(no_wrap=True, justify="right")
+
     effective_max = max(max_count, 1)
     for idx, year in enumerate(sorted_years):
         if idx > 0:
@@ -144,10 +144,28 @@ def format_stats_chart(
         )
         table.add_row(str(year), bar, str(count))
 
-    console = Console(width=terminal_width, legacy_windows=False)
-    with console.capture() as capture:
-        console.print(table)
-        console.print(
-            f"\n[bold]You have liked [green]{total}[/green] {song_word} in Spotify.[/bold]"
-        )
-    return capture.get().rstrip("\n")
+    summary = Text.from_markup(
+        f"\nYou have liked [green]{total}[/green] {song_word} in Spotify.",
+        style="bold",
+    )
+    return Group(table, summary)
+
+
+def format_stats_chart(
+    counts: dict[int, int],
+    terminal_width: int | None = None,
+    bar_color: str = "green",
+) -> str:
+    """Render a horizontal bar chart of songs per year in ascending order using Rich.
+
+    If terminal width is too narrow to display a meaningful bar (at least
+    ``MIN_BAR_WIDTH`` chars), falls back to a simple list of year and count.
+    """
+    renderable = get_stats_renderable(
+        counts, terminal_width=terminal_width, bar_color=bar_color
+    )
+    if isinstance(renderable, str):
+        return renderable
+    console = Console(width=terminal_width or 80, record=True, no_color=True)
+    console.print(renderable)
+    return console.export_text().rstrip("\n")

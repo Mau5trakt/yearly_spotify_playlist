@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 from types import TracebackType
 from typing import Any, Self
 
@@ -15,22 +16,37 @@ from rich.progress import (
     TextColumn,
 )
 
-_console = Console()
+_console: Console | None = None
 _active_progress: Progress | None = None
 _shared_sync_progress: Progress | None = None
 
 
+def make_console_utf8_safe() -> None:
+    """Ensure standard streams support UTF-8 on legacy Windows consoles."""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            try:
+                reconfigure(encoding="utf-8", errors="replace")
+            except ValueError, OSError:  # pragma: no cover - detached stream
+                pass
+
+
 def get_console() -> Console:
-    """Get the active console instance."""
+    """Get the active console instance, lazily created."""
+    global _console
+    if _console is None:
+        make_console_utf8_safe()
+        _console = Console()
     return _console
 
 
-def log(message: str) -> None:
+def log(message: Any) -> None:
     """Print ``message`` above the live bars without breaking them."""
     if _active_progress is not None:
         _active_progress.console.print(message)
     else:
-        _console.print(message)
+        get_console().print(message)
 
 
 class ProgressBar:
@@ -87,7 +103,7 @@ def scan_progress(total: int) -> ProgressBar:
         MofNCompleteColumn(),
         TaskProgressColumn(),
         TextColumn("[dim]{task.fields[status]}"),
-        console=_console,
+        console=get_console(),
         transient=True,
     )
     task_id = p.add_task("Reading your liked songs", total=total, status="")
@@ -103,7 +119,7 @@ def year_progress(total_years: int) -> ProgressBar:
         MofNCompleteColumn(),
         TaskProgressColumn(),
         TextColumn("[dim]{task.fields[status]}"),
-        console=_console,
+        console=get_console(),
         transient=True,
     )
     _active_progress = _shared_sync_progress
@@ -140,7 +156,7 @@ def track_progress(year: int, total_tracks: int) -> ProgressBar:
             MofNCompleteColumn(),
             TaskProgressColumn(),
             TextColumn("[dim]{task.fields[status]}"),
-            console=_console,
+            console=get_console(),
             transient=True,
         )
         task_id = p.add_task(f"Playlist {year}", total=total_tracks, status="")

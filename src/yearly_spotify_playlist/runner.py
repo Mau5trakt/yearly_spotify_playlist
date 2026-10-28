@@ -13,7 +13,7 @@ from .liked_tracks import LikedTrack, group_by_year
 from .spotify_api import SpotifyLibrary, build_spotify
 from .stats import (
     DEFAULT_CACHE_PATH,
-    format_stats_chart,
+    get_stats_renderable,
     load_stats_cache,
     save_stats_cache,
     stats_from_tracks,
@@ -101,12 +101,12 @@ def get_stats_chart(
     *,
     cache_path: Path | str = DEFAULT_CACHE_PATH,
     force_update: bool = False,
-) -> str:
-    """Return formatted stats chart, reading from 1h cache or fetching from Spotify."""
+) -> Any:
+    """Return formatted stats renderable, reading from 1h cache or fetching from Spotify."""
     if not force_update:
         cached = load_stats_cache(path=cache_path)
         if cached is not None:
-            return format_stats_chart(cached)
+            return get_stats_renderable(cached)
 
     library = SpotifyLibrary(build_spotify(settings), market=settings.market)
     user = library.current_user()
@@ -117,7 +117,7 @@ def get_stats_chart(
     all_tracks = [t for tracks in grouped.values() for t in tracks]
     stats = stats_from_tracks(all_tracks)
     save_stats_cache(stats, path=cache_path)
-    return format_stats_chart(stats)
+    return get_stats_renderable(stats)
 
 
 def _read_liked_tracks(library: SpotifyLibrary) -> dict[int, list[LikedTrack]]:
