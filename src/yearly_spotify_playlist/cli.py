@@ -106,6 +106,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     progress.log(
         f"{prefix}: {len(results)} yearly playlists, {total_added} songs {action}."
     )
+    if not settings.dry_run:
+        progress.log("")
+        progress.log(get_stats_chart(settings, cache_path=DEFAULT_CACHE_PATH))
     return 0
 
 
