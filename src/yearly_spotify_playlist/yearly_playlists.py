@@ -99,6 +99,7 @@ def sync_year(
 
     pending = select_new_tracks(tracks, already_present)
     added_uris = {track.uri for track in pending}
+    insert_position: int | None = None if created else 0
 
     for batch in chunked(pending, ADD_BATCH_SIZE):
         extra = len(batch) - 1
@@ -109,7 +110,11 @@ def sync_year(
             )
         else:
             on_status(f'adding "{batch[0].name}"{suffix} to playlist {name}')
-            library.add_tracks(playlist_id, [track.uri for track in batch])
+            library.add_tracks(
+                playlist_id, [track.uri for track in batch], position=insert_position
+            )
+            if insert_position is not None:
+                insert_position += len(batch)
             if batch_delay_seconds > 0:
                 time.sleep(batch_delay_seconds)
         for track in batch:

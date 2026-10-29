@@ -293,3 +293,123 @@ def test_cli_stats_force_update_bypasses_cache(tmp_path: Path, capsys):
     captured = capsys.readouterr()
     assert "2024" in captured.out
     assert "2010" not in captured.out
+
+
+def test_first_saved_track_and_stats_from_tracks():
+    from yearly_spotify_playlist.stats import first_saved_track
+
+    t1 = LikedTrack(
+        uri="u1",
+        name="Track 1",
+        artist="Artist 1",
+        liked_year=2024,
+        added_at="2024-05-01T12:00:00Z",
+    )
+    t2 = LikedTrack(
+        uri="u2",
+        name="Track 2",
+        artist="Artist 2",
+        liked_year=2015,
+        added_at="2015-01-10T08:00:00Z",
+    )
+    t3 = LikedTrack(
+        uri="u3",
+        name="Track 3",
+        artist="Artist 3",
+        liked_year=2020,
+        added_at="2020-09-15T10:00:00Z",
+    )
+
+    earliest = first_saved_track([t1, t2, t3])
+    assert earliest == t2
+    assert first_saved_track([]) is None
+    assert (
+        first_saved_track([LikedTrack(uri="u", name="n", artist="a", liked_year=2020)])
+        is None
+    )
+
+    stats = stats_from_tracks([t1, t2, t3])
+    assert stats == {2015: 1, 2020: 1, 2024: 1}
+    assert stats.first_track == {
+        "name": "Track 2",
+        "artist": "Artist 2",
+        "added_at": "2015-01-10T08:00:00Z",
+    }
+
+
+def test_stats_cache_first_track_roundtrip(tmp_path: Path):
+    cache_file = tmp_path / "stats_cache.json"
+    counts = {2014: 10, 2024: 20}
+    first_info = {
+        "name": "Old Song",
+        "artist": "Old Artist",
+        "added_at": "2014-01-01T00:00:00Z",
+    }
+
+    save_stats_cache(counts, path=cache_file, first_track=first_info)
+    loaded = load_stats_cache(path=cache_file)
+
+    assert loaded == counts
+    assert loaded.first_track == first_info
+
+
+def test_stats_chart_crown_and_first_track_rendering():
+    from yearly_spotify_playlist.stats import get_stats_renderable
+
+    counts = {2014: 100, 2024: 500}
+    first_info = {
+        "name": "Intro Track",
+        "artist": "Pioneer",
+        "added_at": "2014-02-03T04:05:06Z",
+    }
+
+    # Test rich renderable
+    renderable = get_stats_renderable(counts, first_track=first_info)
+    table, summary = renderable.renderables
+
+    # Inspect table columns (index 0 is 2014, index 1 is spacer, index 2 is 2024)
+    # Year 2014 (not top)
+    bar_2014 = table.columns[1]._cells[0]
+    crown_2014 = table.columns[2]._cells[0]
+    assert bar_2014.style.color.name == "green"
+    assert crown_2014 == ""
+
+    # Year 2024 (top)
+    bar_2024 = table.columns[1]._cells[2]
+    crown_2024 = table.columns[2]._cells[2]
+    assert bar_2024.style.color.name == "gold1"
+    assert crown_2024 == "👑"
+
+    # Summary text
+    assert (
+        'Your first saved song was "Intro Track" by Pioneer on 2014-02-03T04:05:06Z.'
+        in summary.plain
+    )
+
+    # Test narrow fallback text
+    narrow_text = format_stats_chart(counts, terminal_width=15, first_track=first_info)
+    assert (
+        'Your first saved song was "Intro Track" by Pioneer on 2014-02-03T04:05:06Z.'
+        in narrow_text
+    )
+
+
+def test_stats_chart_tied_max_has_no_crown_or_gold():
+    from yearly_spotify_playlist.stats import get_stats_renderable
+
+    # Two years tied for the top count
+    counts = {2020: 300, 2021: 500, 2022: 500}
+    renderable = get_stats_renderable(counts)
+    table, _ = renderable.renderables
+
+    # 2020 (index 0)
+    assert table.columns[1]._cells[0].style.color.name == "green"
+    assert table.columns[2]._cells[0] == ""
+
+    # 2021 (index 2)
+    assert table.columns[1]._cells[2].style.color.name == "green"
+    assert table.columns[2]._cells[2] == ""
+
+    # 2022 (index 4)
+    assert table.columns[1]._cells[4].style.color.name == "green"
+    assert table.columns[2]._cells[4] == ""

@@ -131,7 +131,6 @@ def _read_liked_tracks(library: SpotifyLibrary) -> dict[int, list[LikedTrack]]:
     total = first.get("total") or len(items)
 
     with progress.scan_progress(total) as bar:
-        progress.describe(bar, "requesting the first page")
         bar.update(len(items))
         for page in pages:
             page_items = page.get("items", [])

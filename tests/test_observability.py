@@ -135,3 +135,18 @@ def test_rich_progress_lifecycle():
     # Standalone track progress fallback
     with progress.track_progress(2024, 3) as single_bar:
         single_bar.update(1)
+
+
+def test_progress_bars_have_spinner_column():
+    from rich.progress import SpinnerColumn
+
+    from yearly_spotify_playlist import progress
+
+    with progress.scan_progress(10) as bar:
+        assert isinstance(bar._progress.columns[0], SpinnerColumn)
+
+    with progress.year_progress(2) as bar:
+        assert isinstance(bar._progress.columns[0], SpinnerColumn)
+
+    with progress.track_progress(2023, 5) as bar:
+        assert isinstance(bar._progress.columns[0], SpinnerColumn)

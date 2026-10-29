@@ -11,10 +11,13 @@ from rich.progress import (
     BarColumn,
     MofNCompleteColumn,
     Progress,
+    SpinnerColumn,
     TaskID,
     TaskProgressColumn,
     TextColumn,
 )
+
+DEFAULT_SPINNER = "dots9"
 
 _console: Console | None = None
 _active_progress: Progress | None = None
@@ -98,6 +101,7 @@ class ProgressBar:
 def scan_progress(total: int) -> ProgressBar:
     """Bar for the phase that reads every saved track from the API."""
     p = Progress(
+        SpinnerColumn(DEFAULT_SPINNER),
         TextColumn("[bold cyan]{task.description}"),
         BarColumn(),
         MofNCompleteColumn(),
@@ -114,6 +118,7 @@ def year_progress(total_years: int) -> ProgressBar:
     """Outer bar: one step per year playlist."""
     global _shared_sync_progress, _active_progress
     _shared_sync_progress = Progress(
+        SpinnerColumn(DEFAULT_SPINNER),
         TextColumn("[bold cyan]{task.description}"),
         BarColumn(),
         MofNCompleteColumn(),
@@ -151,6 +156,7 @@ def track_progress(year: int, total_tracks: int) -> ProgressBar:
     """Inner bar: one step per track of the year currently being synced."""
     if _shared_sync_progress is None:
         p = Progress(
+            SpinnerColumn(DEFAULT_SPINNER),
             TextColumn("[bold cyan]{task.description}"),
             BarColumn(),
             MofNCompleteColumn(),
