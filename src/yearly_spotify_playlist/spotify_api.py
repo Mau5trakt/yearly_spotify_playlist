@@ -157,11 +157,18 @@ class SpotifyLibrary:
         )
         return str(created["id"])
 
-    def add_tracks(self, playlist_id: str, uris: list[str]) -> None:
-        """Append up to 100 tracks to a playlist.
+    def add_tracks(
+        self, playlist_id: str, uris: list[str], *, position: int | None = None
+    ) -> None:
+        """Add up to 100 tracks to a playlist, optionally at a specific position.
 
         ``playlist_add_items`` posts a bare JSON array, but the documented body
         for ``POST /playlists/{id}/items`` is ``{"uris": [...]}``, so the request
-        is issued directly with the documented payload.
+        is issued directly with the documented payload. When ``position`` is
+        provided, items are inserted at that zero-based offset; otherwise they are
+        appended to the end.
         """
-        self._client._post(f"playlists/{playlist_id}/items", payload={"uris": uris})
+        payload: dict[str, Any] = {"uris": uris}
+        if position is not None:
+            payload["position"] = position
+        self._client._post(f"playlists/{playlist_id}/items", payload=payload)

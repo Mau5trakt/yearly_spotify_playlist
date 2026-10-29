@@ -114,6 +114,7 @@ def mock_run_context():
         patch("yearly_spotify_playlist.runner.SpotifyLibrary") as mock_lib_cls,
         patch("yearly_spotify_playlist.runner._read_liked_tracks") as mock_read,
         patch("yearly_spotify_playlist.runner._sync_all_years") as mock_sync,
+        patch("yearly_spotify_playlist.runner.save_stats_cache"),
     ):
         mock_lib = MagicMock()
         mock_lib.current_user.return_value = {

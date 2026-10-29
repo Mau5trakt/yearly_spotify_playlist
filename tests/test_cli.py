@@ -37,12 +37,18 @@ def test_main_success_prints_done_summary(capsys):
             return_value=_settings(dry_run=False),
         ),
         patch("yearly_spotify_playlist.cli.run", return_value=results),
+        patch(
+            "yearly_spotify_playlist.cli.get_stats_chart",
+            return_value="Songs per year\nMock chart",
+        ) as mock_stats,
     ):
         exit_code = main()
 
     assert exit_code == 0
+    mock_stats.assert_called_once()
     captured = capsys.readouterr()
-    assert captured.out.strip() == "Done: 2 yearly playlists, 15 songs added."
+    assert "Done: 2 yearly playlists, 15 songs added." in captured.out
+    assert "Songs per year" in captured.out
 
 
 def test_main_help_flag_exits_zero_and_prints_usage(capsys):
@@ -79,11 +85,13 @@ def test_main_dry_run_flag_sets_dry_run_on_settings(capsys):
             return_value=_settings(dry_run=False),
         ),
         patch("yearly_spotify_playlist.cli.run", return_value=results) as mock_run,
+        patch("yearly_spotify_playlist.cli.get_stats_chart") as mock_stats,
     ):
         exit_code = main(["--dry-run"])
 
     assert exit_code == 0
     mock_run.assert_called_once()
+    mock_stats.assert_not_called()
     passed_settings = mock_run.call_args[0][0]
     assert passed_settings.dry_run is True
     captured = capsys.readouterr()
@@ -101,6 +109,7 @@ def test_main_no_args_keeps_dry_run_false(capsys):
             return_value=_settings(dry_run=False),
         ),
         patch("yearly_spotify_playlist.cli.run", return_value=results) as mock_run,
+        patch("yearly_spotify_playlist.cli.get_stats_chart"),
     ):
         exit_code = main([])
 

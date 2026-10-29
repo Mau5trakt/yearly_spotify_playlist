@@ -15,6 +15,7 @@ class LikedTrack:
     name: str
     artist: str
     liked_year: int
+    added_at: str | None = None
 
 
 def liked_year(added_at: str | None) -> int | None:
@@ -43,7 +44,8 @@ def parse_saved_track(item: Mapping[str, Any]) -> LikedTrack | None:
     if not isinstance(track, Mapping):
         return None
 
-    year = liked_year(item.get("added_at"))
+    raw_added_at = item.get("added_at")
+    year = liked_year(raw_added_at)
     if year is None:
         return None
 
@@ -56,7 +58,13 @@ def parse_saved_track(item: Mapping[str, Any]) -> LikedTrack | None:
     if track.get("is_local"):
         return None
 
-    return LikedTrack(uri=uri, name=name, artist=_first_artist(track), liked_year=year)
+    return LikedTrack(
+        uri=uri,
+        name=name,
+        artist=_first_artist(track),
+        liked_year=year,
+        added_at=raw_added_at.strip() if isinstance(raw_added_at, str) else None,
+    )
 
 
 def group_by_year(items: Iterable[Mapping[str, Any]]) -> dict[int, list[LikedTrack]]:

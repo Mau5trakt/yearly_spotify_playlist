@@ -256,3 +256,15 @@ def test_add_tracks_posts_uris():
         "playlists/pid/items",
         payload={"uris": ["spotify:track:a", "spotify:track:b"]},
     )
+
+
+def test_add_tracks_posts_uris_with_position():
+    client = MagicMock()
+    lib = _library(client)
+
+    lib.add_tracks("pid", ["spotify:track:a"], position=0)
+
+    client._post.assert_called_once_with(
+        "playlists/pid/items",
+        payload={"uris": ["spotify:track:a"], "position": 0},
+    )

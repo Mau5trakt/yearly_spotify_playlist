@@ -46,6 +46,7 @@ def test_parse_saved_track_reads_name_artist_and_year():
     assert track.artist == "Some Artist"
     assert track.liked_year == 2023
     assert track.uri == "spotify:track:a"
+    assert track.added_at == "2023-04-17T09:31:05Z"
 
 
 def test_parse_saved_track_rejects_unusable_entries():

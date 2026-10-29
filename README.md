@@ -18,15 +18,29 @@ previewing (`--dry-run`) and help (`--help`).
 ```
 Connected as Enrique (enriqueal)
 
-Reading your liked songs: 100%|██████████| 2.31k/2.31k [00:12<00:00, 191song/s, requesting the first page]
-2.3k liked songs spread across 9 years: 2026, 2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018
+⢹ Reading your liked songs ━━━━━━━━━━━━━━━━━━━━━━━━ 2338/2338 100%
+2.3k liked songs spread across 6 years: 2026, 2025, 2024, 2023, 2019, 2014
 
-Yearly playlists:  33%|███▎      | 3/9 [00:21<00:42, 8.5year/s, 2024]
-  2024: playlist created | 412 added
-Yearly playlists:  44%|████▍     | 4/9 [00:24<00:31, 9.7year/s, 2023]
-  2023: playlist reused | 87 added | 530 already there
+⢹ Yearly playlists  ━━━━━━━━━━━━━━━━━━━━━━━━ 6/6 100% 2026
+  2026: playlist reused | 8 added | 602 already there
   ...
-Done: 9 yearly playlists, 731 songs added.
+Done: 6 yearly playlists, 8 songs added.
+
+                         Songs per year                         
+ 2014 ██▊                                                    41 
+                                                                
+ 2019 ███████████▌                                          171 
+                                                                
+ 2023 ██████████████████████████████████████████████████ 👑 741 
+                                                                
+ 2024 ████████████████████████████████▍                     480 
+                                                                
+ 2025 ███████████████████▉                                  295 
+                                                                
+ 2026 █████████████████████████████████████████▏            610 
+
+You have liked 2338 songs in Spotify.
+Your first saved song was "Nuclear (Album Version) - Original Mix" by Zomboy on 2014-12-27T00:02:46Z.
 ```
 
 ---
@@ -41,9 +55,11 @@ Done: 9 yearly playlists, 731 songs added.
   - [3. Get the Refresh Token](#3-get-the-refresh-token)
   - [4. Configure the `.env`](#4-configure-the-env)
 - [Usage](#usage)
+- [Statistics and Visual Highlights](#statistics-and-visual-highlights)
 - [Environment Variables](#environment-variables)
 - [How It Works Internally](#how-it-works-internally)
 - [Re-runs: It Is Idempotent](#re-runs-it-is-idempotent)
+- [Manual Playlist Deletions and Re-sync Order](#manual-playlist-deletions-and-re-sync-order)
 - [Project Structure](#project-structure)
 - [Tests](#tests)
 - [Notes on the Spotify API in 2026](#notes-on-the-spotify-api-in-2026)
@@ -150,6 +166,26 @@ Preview changes without modifying Spotify:
 uv run yearly-spotify-playlist --dry-run
 ```
 
+Display horizontal bar chart statistics of liked songs per year without modifying playlists:
+
+```bash
+uv run yearly-spotify-playlist --stats
+# or
+uv run yearly-spotify-playlist -s
+```
+
+Force a fresh update from Spotify, ignoring the local 1-hour cache:
+
+```bash
+uv run yearly-spotify-playlist -su
+# or
+uv run yearly-spotify-playlist -s u
+# or
+uv run yearly-spotify-playlist --stats --update
+```
+
+The stats command uses a local 1-hour cache (`stats_cache.json`, base64-encoded and gitignored) to avoid redundant Spotify requests. If the cache is expired, missing, or the `u` / `--update` flag is passed, it fetches fresh liked songs and refreshes the cache.
+
 Show available options and help:
 
 ```bash
@@ -163,6 +199,15 @@ uv run python -m yearly_spotify_playlist
 ```
 
 Exit code: `0` if everything succeeded, `1` if it failed (or `130` if interrupted).
+
+## Statistics and Visual Highlights
+
+The CLI includes an interactive horizontal bar chart powered by Rich, rendered automatically after every live run or on demand via `-s` / `--stats`:
+
+- **One-hour Cache:** Stats are cached locally in `stats_cache.json` (base64-encoded, gitignored) to avoid redundant Spotify requests. Use `-u` / `--update` to bypass the cache.
+- **Top Year Spotlight:** When a single year has strictly more liked songs than any other year, its bar is highlighted in gold (`gold1`) and badged with a crown emoji (`👑`). If two or more years tie for the top count, all bars remain in standard green.
+- **First Saved Song:** Displays your all-time earliest saved song from your Spotify library, with its title, artist, and exact ISO timestamp.
+- **Customizable Spinners:** Loading bars feature Rich animated spinners (configured via `DEFAULT_SPINNER` in `progress.py`, defaulting to `dots9`).
 
 ## Environment Variables
 
@@ -238,18 +283,17 @@ That is why the process **never opens a browser** and uses `open_browser=False`.
 
 ### The Progress Bar
 
-There are two phases, and each one shows the current action live:
+There are two phases rendered with Rich, each featuring animated spinners and progress live:
 
 **Phase 1 — reading.** One bar with the total number of liked songs (`total` comes
 from the first API response).
 
 **Phase 2 — syncing.** An outer bar with one step per year, and inside it one bar per
-year with one step per song. The text to the right of the bar is the action in
-progress, and it changes as the run goes:
+year with one step per track. Dynamic status appears to the right of the active task:
 
 ```
-Yearly playlists:  33%|███▎      | 3/9 [00:21<00:42, 8.5year/s, 2024]
-Playlist 2024:  45%|████▌     | 184/412 [00:08<00:10, 22song/s, adding "Bohemian Rhapsody" and 99 more to playlist 2024]
+⢹ Yearly playlists  ━━━━━━━━━━━━━━━━━━╸━━━━━ 3/9 33% 2024
+⢹ Playlist 2024     ━━━━━━━━━━━━━╸━━━━━━━━━━ 184/412 45% adding "Bohemian Rhapsody" and 99 more to playlist 2024
 ```
 
 When a song was already there, the action reads `"X" was already in playlist 2024`.
@@ -260,6 +304,8 @@ You can run the program as many times as you want:
 
 - If the `2023` playlist **already exists** and is yours, it is reused. The program
   reads its contents (`GET /playlists/{id}/items`) and only adds what is missing.
+- Newly liked songs are inserted **at the top (position 0)** of the playlist in
+  newest-to-oldest order.
 - If it already had everything, it makes no write calls at all.
 - If it does not exist, it is created.
 
@@ -275,6 +321,23 @@ One more caveat: the playlist description is only written **when the playlist is
 created**. Re-running the program against an existing playlist leaves its description
 untouched.
 
+## Manual Playlist Deletions and Re-sync Order
+
+Each yearly playlist is maintained in **reverse chronological order**: the most recently liked songs sit at the top of the playlist, and older songs are at the bottom.
+
+When you run the tool again:
+1. It compares your Spotify likes against the tracks currently in the playlist.
+2. Any song present in your likes but missing from the playlist is considered **new**.
+3. All missing tracks are prepended to the **very top (position 0)** of the playlist.
+
+### What happens if you delete an old song from a playlist?
+
+If you manually delete an older song from a playlist directly in Spotify (such as the oldest track at the bottom) but **do not unlike it** in your library:
+
+The next time `yearly-spotify-playlist` runs, it will detect that the song is missing from the playlist. Because the sync process treats any missing track as a new addition that belongs at the head of the playlist, **it will re-insert that song at the very top (first position)** of the playlist.
+
+> **Tip:** If you genuinely want a song excluded from your yearly playlist, remove it from your **Liked Songs** in Spotify. The tool operates on a fast, incremental model rather than reconstructing your full playlist from scratch on every run.
+
 ## Project Structure
 
 ```
@@ -289,7 +352,8 @@ src/yearly_spotify_playlist/
 ├── spotify_api.py       authenticated client + the exact endpoints
 ├── liked_tracks.py      added_at parsing and year grouping
 ├── yearly_playlists.py  create/reuse playlist and add in batches
-├── progress.py          tqdm progress bars
+├── stats.py             statistics calculation, base64 cache, and rich horizontal bar chart
+├── progress.py          rich progress bars and status reporting
 └── runner.py            orchestration of the run
 
 tests/
@@ -299,6 +363,7 @@ tests/
 ├── test_observability.py
 ├── test_runner.py
 ├── test_spotify_api.py
+├── test_stats.py
 └── test_yearly_playlists.py
 ```
 

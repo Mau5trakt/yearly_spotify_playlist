@@ -1,6 +1,6 @@
 """Package-wide logging, configured from the ``LOG_LEVEL`` environment variable.
 
-The handler writes through :func:`tqdm.write` so log lines never break the
+The handler writes through :func:`progress.log` so log lines never break the
 live progress bars.
 """
 
@@ -9,19 +9,22 @@ from __future__ import annotations
 import logging
 import os
 
-from tqdm import tqdm
+from . import progress
 
 PACKAGE = __name__.rsplit(".", 1)[0]  # "yearly_spotify_playlist"
 
 
 class TqdmHandler(logging.Handler):
-    """Emit log records through :func:`tqdm.write` to avoid corrupting bars."""
+    """Emit log records through :func:`progress.log` to avoid corrupting bars."""
 
     def emit(self, record: logging.LogRecord) -> None:
         try:
-            tqdm.write(self.format(record))
+            progress.log(self.format(record))
         except Exception:  # noqa: BLE001 — logging must never crash the app
             self.handleError(record)
+
+
+RichProgressHandler = TqdmHandler
 
 
 def setup_logging() -> None:

@@ -29,6 +29,7 @@ class FakeLibrary:
     def __init__(self, existing_items: set[str] | None = None) -> None:
         self.created: list[tuple[str, str]] = []
         self.added: list[tuple[str, list[str]]] = []
+        self.added_calls: list[tuple[str, list[str], int | None]] = []
         self.existing_items = existing_items or set()
         self.contents_read: list[str] = []
 
@@ -40,8 +41,11 @@ class FakeLibrary:
         self.contents_read.append(playlist_id)
         return self.existing_items
 
-    def add_tracks(self, playlist_id: str, uris: list[str]) -> None:
+    def add_tracks(
+        self, playlist_id: str, uris: list[str], *, position: int | None = None
+    ) -> None:
         self.added.append((playlist_id, uris))
+        self.added_calls.append((playlist_id, uris, position))
 
 
 def _run(
@@ -120,10 +124,26 @@ def test_sync_year_reuses_existing_playlist_and_skips_known_tracks():
     assert library.created == []
     assert library.contents_read == ["old-id"]
     assert library.added == [("old-id", ["spotify:track:2"])]
+    assert library.added_calls == [("old-id", ["spotify:track:2"], 0)]
     assert result.created is False
     assert (result.added, result.skipped) == (1, 2)
     assert settled == [("Song 2", True), ("Song 0", False), ("Song 1", False)]
     assert statuses[0] == "reusing playlist 2023"
+
+
+def test_sync_year_reuses_existing_playlist_batches_at_top():
+    count = ADD_BATCH_SIZE * 2 + 5
+    library = FakeLibrary(existing_items={"spotify:track:old"})
+    tracks = _tracks(count)
+
+    result, _, _ = _run(library, 2023, tracks, existing_playlist={"id": "old-id"})
+
+    assert [pos for _, _, pos in library.added_calls] == [
+        0,
+        ADD_BATCH_SIZE,
+        ADD_BATCH_SIZE * 2,
+    ]
+    assert result.added == count
 
 
 def test_sync_year_is_a_noop_when_everything_is_already_there():

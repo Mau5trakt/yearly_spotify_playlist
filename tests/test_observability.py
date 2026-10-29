@@ -53,7 +53,7 @@ def test_tqdm_handler_writes_through_tqdm():
         exc_info=None,
     )
 
-    with patch("yearly_spotify_playlist.log.tqdm.write") as mock_write:
+    with patch("yearly_spotify_playlist.log.progress.log") as mock_write:
         handler.emit(record)
         mock_write.assert_called_once_with("hello tqdm")
 
@@ -110,3 +110,43 @@ def test_owned_playlists_by_name_logs_warning_on_duplicates(caplog):
 
     assert result["2023"]["id"] == "first-id"
     assert any("Found duplicate playlist '2023'" in r.message for r in caplog.records)
+
+
+# -- Rich Progress unit tests -------------------------------------------------
+
+
+def test_rich_progress_lifecycle():
+    from yearly_spotify_playlist import progress
+
+    progress.log("Test log outside bar")
+
+    with progress.scan_progress(10) as bar:
+        progress.describe(bar, "first step")
+        bar.update(5)
+        progress.log("Test log inside bar")
+
+    with progress.year_progress(2) as y_bar:
+        y_bar.set_postfix_str("2023")
+        with progress.track_progress(2023, 5) as t_bar:
+            t_bar.update(2)
+            progress.describe(t_bar, "added song")
+        y_bar.update(1)
+
+    # Standalone track progress fallback
+    with progress.track_progress(2024, 3) as single_bar:
+        single_bar.update(1)
+
+
+def test_progress_bars_have_spinner_column():
+    from rich.progress import SpinnerColumn
+
+    from yearly_spotify_playlist import progress
+
+    with progress.scan_progress(10) as bar:
+        assert isinstance(bar._progress.columns[0], SpinnerColumn)
+
+    with progress.year_progress(2) as bar:
+        assert isinstance(bar._progress.columns[0], SpinnerColumn)
+
+    with progress.track_progress(2023, 5) as bar:
+        assert isinstance(bar._progress.columns[0], SpinnerColumn)
