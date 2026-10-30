@@ -342,7 +342,7 @@ def main(token_cache_path: Path | str = DEFAULT_TOKEN_CACHE_PATH) -> int:
 
     try:
         code = get_auth_code(auth, redirect_uri)
-    except (EOFError, KeyboardInterrupt):
+    except EOFError, KeyboardInterrupt:
         print("\nCancelled.", file=sys.stderr)
         return 1
     except SpotifyOauthError as exc:
