@@ -81,7 +81,11 @@ def parse_redirect_uri(redirect_uri: str) -> tuple[str, int, str] | None:
     if not is_loopback:
         return None
 
-    port = parts.port or (443 if parts.scheme.lower() == "https" else 80)
+    port = (
+        parts.port
+        if parts.port is not None
+        else (443 if parts.scheme.lower() == "https" else 80)
+    )
     path = parts.path or "/"
     return host, port, path
 

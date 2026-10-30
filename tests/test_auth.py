@@ -38,6 +38,7 @@ def test_parse_default_redirect_uri() -> None:
         ("http://localhost:8080/cb", "localhost", 8080, "/cb"),
         ("http://127.0.0.1/callback", "127.0.0.1", 80, "/callback"),
         ("http://127.0.0.1:8888", "127.0.0.1", 8888, "/"),
+        ("http://127.0.0.1:0/callback", "127.0.0.1", 0, "/callback"),
         ("http://[::1]:8888/callback", "::1", 8888, "/callback"),
     ],
 )
