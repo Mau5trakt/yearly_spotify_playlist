@@ -120,39 +120,32 @@ Open the app and copy the **Client ID** and **Client Secret**.
 uv sync
 ```
 
-### 3. Get the Refresh Token
-
-The CLI does not open a browser or prompt you for anything: interactive authorization
-happens through a separate command that you run **once**.
-
-First put `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET` in a `.env` (see the next
-step, but those two alone are enough). Then:
-
-```bash
-uv run python -m yearly_spotify_playlist.auth
-```
-
-The command:
-
-1. Prints the authorization URL and tries to open it in your browser.
-2. Asks you to paste the URL Spotify redirected you to.
-
-   You will end up at `http://127.0.0.1:8888/callback?code=...` and the browser will
-   say it cannot connect. **That is normal and expected** — nothing is listening on
-   that port. What matters is copying the full URL from the address bar.
-3. Exchanges the code for a refresh token and prints the line to paste into your
-   `.env`.
-
-If you already have a refresh token from before (or from another app), skip this step.
-
-### 4. Configure the `.env`
+### 3. Configure the `.env`
 
 ```bash
 cp .env.example .env
 ```
 
-Fill in `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET` and `SPOTIFY_REFRESH_TOKEN`.
+Fill in `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET`.
 The `.env` is in `.gitignore`: **never commit it**.
+
+### 4. Authentication (Automatic Loopback or Manual Helper)
+
+The CLI features **automatic interactive authentication**:
+
+1. Run the CLI directly:
+   ```bash
+   uv run yearly-spotify-playlist
+   ```
+2. If no token is detected, it automatically starts an ephemeral HTTP listener on `127.0.0.1:8888/callback`, opens your browser, captures Spotify's authorization code, and exchanges it for a refresh token.
+3. The token is automatically cached locally in `.spotify_token.json` (gitignored), so you don't even need to copy and paste it into `.env`.
+4. If your token ever expires or gets revoked, the CLI automatically prompts for re-authentication and refreshes the cache.
+
+*(Optional)* You can also run the standalone auth helper whenever you want:
+```bash
+uv run python -m yearly_spotify_playlist.auth
+```
+And if you run in headless or CI environments, setting `SPOTIFY_REFRESH_TOKEN` in `.env` or system environment variables is still fully supported and takes precedence over the cached file.
 
 ## Usage
 
@@ -215,7 +208,7 @@ The CLI includes an interactive horizontal bar chart powered by Rich, rendered a
 |---|---|---|---|
 | `SPOTIFY_CLIENT_ID` | Yes | — | Client ID of your dashboard app. |
 | `SPOTIFY_CLIENT_SECRET` | Yes | — | Client Secret of your dashboard app. |
-| `SPOTIFY_REFRESH_TOKEN` | Yes | — | Long-lived access token. Without it there is no way to obtain a new one. |
+| `SPOTIFY_REFRESH_TOKEN` | No | *(reads from `.spotify_token.json` or auto-authenticates)* | Optional explicit refresh token override. If omitted, the CLI checks `.spotify_token.json` or launches interactive loopback login. |
 | `SPOTIFY_REDIRECT_URI` | No | `http://127.0.0.1:8888/callback` | Must match exactly the one registered in the dashboard. Only used during authorization. |
 | `SPOTIFY_MARKET` | No | *(empty)* | ISO 3166-1 alpha-2 country code (e.g. `ES`). Filters out content unavailable in your market. If left empty, your account's country is used. |
 | `SPOTIFY_YEARS` | No | *(empty)* | Comma-separated list of explicit years to sync (e.g. `2023,2024`). Takes precedence over `SPOTIFY_YEAR_FROM`. |
