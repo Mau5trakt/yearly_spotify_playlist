@@ -27,4 +27,8 @@ odd/
 # Stats cache
 .stats_cache.json
 stats_cache.json
+
+# Token cache
+.spotify_token.json
+spotify_token.json
 .pi/

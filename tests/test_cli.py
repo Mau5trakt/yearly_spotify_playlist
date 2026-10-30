@@ -74,7 +74,150 @@ def test_main_unknown_flag_exits_non_zero(capsys):
     assert "unrecognized arguments" in captured.err
 
 
-def test_main_dry_run_flag_sets_dry_run_on_settings(capsys):
+def test_main_missing_token_non_interactive_fails(capsys):
+    settings = Settings(
+        client_id="cid",
+        client_secret="csec",
+        refresh_token=None,
+        redirect_uri="http://127.0.0.1:8888/callback",
+        market=None,
+    )
+
+    with (
+        patch("yearly_spotify_playlist.cli.load_settings", return_value=settings),
+        patch("yearly_spotify_playlist.cli.is_interactive", return_value=False),
+    ):
+        exit_code = main()
+
+    assert exit_code == 1
+    captured = capsys.readouterr()
+    assert "missing SPOTIFY_REFRESH_TOKEN" in captured.err
+
+
+def test_main_missing_token_interactive_triggers_autologin_and_succeeds(
+    capsys, tmp_path
+):
+    settings = Settings(
+        client_id="cid",
+        client_secret="csec",
+        refresh_token=None,
+        redirect_uri="http://127.0.0.1:8888/callback",
+        market=None,
+    )
+
+    results = [
+        YearResult(year=2023, playlist_id="p1", added=1, skipped=0, created=True),
+    ]
+
+    cache_file = tmp_path / ".spotify_token.json"
+
+    with (
+        patch("yearly_spotify_playlist.cli.load_settings", return_value=settings),
+        patch("yearly_spotify_playlist.cli.is_interactive", return_value=True),
+        patch(
+            "yearly_spotify_playlist.auth.authorize_and_get_refresh_token",
+            return_value="auto_captured_token_999",
+        ) as mock_auth,
+        patch("yearly_spotify_playlist.cli.DEFAULT_TOKEN_CACHE_PATH", cache_file),
+        patch("yearly_spotify_playlist.cli.run", return_value=results) as mock_run,
+        patch("yearly_spotify_playlist.cli.get_stats_chart"),
+    ):
+        exit_code = main()
+
+    assert exit_code == 0
+    mock_auth.assert_called_once_with(
+        client_id="cid",
+        client_secret="csec",
+        redirect_uri="http://127.0.0.1:8888/callback",
+    )
+    passed_settings = mock_run.call_args[0][0]
+    assert passed_settings.refresh_token == "auto_captured_token_999"
+    captured = capsys.readouterr()
+    assert "Starting loopback authentication" in captured.out
+
+
+def test_main_expired_token_interactive_reauthenticates_and_succeeds(capsys, tmp_path):
+    from spotipy.oauth2 import SpotifyOauthError
+
+    settings = Settings(
+        client_id="cid",
+        client_secret="csec",
+        refresh_token="expired_old_token",
+        redirect_uri="http://127.0.0.1:8888/callback",
+        market=None,
+    )
+
+    results = [
+        YearResult(year=2024, playlist_id="p24", added=2, skipped=0, created=True),
+    ]
+
+    cache_file = tmp_path / ".spotify_token.json"
+    cache_file.write_text('{"refresh_token": "expired_old_token"}', encoding="utf-8")
+
+    call_count = 0
+
+    def mock_run_with_initial_failure(s: Settings):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            assert s.refresh_token == "expired_old_token"
+            raise SpotifyOauthError("invalid_grant: Refresh token revoked")
+        assert s.refresh_token == "freshly_renewed_token"
+        return results
+
+    with (
+        patch("yearly_spotify_playlist.cli.load_settings", return_value=settings),
+        patch("yearly_spotify_playlist.cli.is_interactive", return_value=True),
+        patch(
+            "yearly_spotify_playlist.auth.authorize_and_get_refresh_token",
+            return_value="freshly_renewed_token",
+        ) as mock_auth,
+        patch("yearly_spotify_playlist.cli.DEFAULT_TOKEN_CACHE_PATH", cache_file),
+        patch(
+            "yearly_spotify_playlist.cli.run",
+            side_effect=mock_run_with_initial_failure,
+        ),
+        patch("yearly_spotify_playlist.cli.get_stats_chart"),
+    ):
+        exit_code = main()
+
+    assert exit_code == 0
+    assert call_count == 2
+    mock_auth.assert_called_once()
+    captured = capsys.readouterr()
+    assert "Spotify token is invalid or expired. Re-authenticating..." in captured.err
+    assert "Done: 1 yearly playlists, 2 songs added." in captured.out
+
+
+def test_main_expired_token_non_interactive_does_not_retry(capsys):
+    from spotipy.oauth2 import SpotifyOauthError
+
+    settings = Settings(
+        client_id="cid",
+        client_secret="csec",
+        refresh_token="expired_token",
+        redirect_uri="http://127.0.0.1:8888/callback",
+        market=None,
+    )
+
+    with (
+        patch("yearly_spotify_playlist.cli.load_settings", return_value=settings),
+        patch("yearly_spotify_playlist.cli.is_interactive", return_value=False),
+        patch(
+            "yearly_spotify_playlist.cli.run",
+            side_effect=SpotifyOauthError("invalid_grant"),
+        ),
+        patch(
+            "yearly_spotify_playlist.auth.authorize_and_get_refresh_token"
+        ) as mock_auth,
+    ):
+        exit_code = main()
+
+    assert exit_code == 1
+    mock_auth.assert_not_called()
+    captured = capsys.readouterr()
+    assert "Run failed" in captured.err or "invalid_grant" in captured.err
+
     results = [
         YearResult(year=2023, playlist_id="dry-2023", added=7, skipped=1, created=True),
     ]

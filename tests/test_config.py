@@ -4,10 +4,14 @@ import pytest
 
 from yearly_spotify_playlist.config import (
     DEFAULT_REDIRECT_URI,
+    DEFAULT_TOKEN_CACHE_PATH,
     SCOPES,
     ConfigError,
     Settings,
+    clear_token_cache,
     load_settings,
+    load_token_cache,
+    save_token_cache,
 )
 
 # -- Minimal valid environment ------------------------------------------------
@@ -15,7 +19,6 @@ from yearly_spotify_playlist.config import (
 _REQUIRED = {
     "SPOTIFY_CLIENT_ID": "test-client-id",
     "SPOTIFY_CLIENT_SECRET": "test-client-secret",
-    "SPOTIFY_REFRESH_TOKEN": "test-refresh-token",
 }
 
 
@@ -36,7 +39,7 @@ def _load(env_file: str = "nonexistent.env"):
 
 
 def test_load_settings_returns_all_fields(monkeypatch):
-    _set_env(monkeypatch)
+    _set_env(monkeypatch, {"SPOTIFY_REFRESH_TOKEN": "test-refresh-token"})
     settings = _load()
 
     assert settings.client_id == "test-client-id"
@@ -56,7 +59,61 @@ def test_load_settings_reads_optional_market(monkeypatch):
     assert _load().market == "ES"
 
 
-def test_load_settings_strips_whitespace(monkeypatch):
+def test_default_token_cache_path():
+    from pathlib import Path
+
+    assert DEFAULT_TOKEN_CACHE_PATH == Path(".spotify_token.json")
+
+
+def test_token_cache_lifecycle(tmp_path):
+    cache_path = tmp_path / ".spotify_token.json"
+    assert load_token_cache(path=cache_path) is None
+
+    save_token_cache("cached-refresh-token-123", path=cache_path)
+    assert load_token_cache(path=cache_path) == "cached-refresh-token-123"
+
+    clear_token_cache(path=cache_path)
+    assert load_token_cache(path=cache_path) is None
+
+
+def test_token_cache_invalid_content(tmp_path):
+    cache_path = tmp_path / ".spotify_token.json"
+    cache_path.write_text("not json", encoding="utf-8")
+    assert load_token_cache(path=cache_path) is None
+
+    cache_path.write_text("[]", encoding="utf-8")
+    assert load_token_cache(path=cache_path) is None
+
+    cache_path.write_text('{"other": "data"}', encoding="utf-8")
+    assert load_token_cache(path=cache_path) is None
+
+
+def test_load_settings_precedence_env_over_cache(monkeypatch, tmp_path):
+    cache_path = tmp_path / ".spotify_token.json"
+    save_token_cache("token-from-cache", path=cache_path)
+
+    _set_env(monkeypatch, {"SPOTIFY_REFRESH_TOKEN": "token-from-env"})
+    settings = load_settings(env_file="dummy.env", token_cache_path=cache_path)
+    assert settings.refresh_token == "token-from-env"
+
+
+def test_load_settings_reads_from_token_cache_when_env_missing(monkeypatch, tmp_path):
+    cache_path = tmp_path / ".spotify_token.json"
+    save_token_cache("token-from-cache", path=cache_path)
+
+    _set_env(monkeypatch)
+    monkeypatch.delenv("SPOTIFY_REFRESH_TOKEN", raising=False)
+    settings = load_settings(env_file="dummy.env", token_cache_path=cache_path)
+    assert settings.refresh_token == "token-from-cache"
+
+
+def test_load_settings_allows_missing_refresh_token(monkeypatch, tmp_path):
+    cache_path = tmp_path / "nonexistent.json"
+    _set_env(monkeypatch)
+    monkeypatch.delenv("SPOTIFY_REFRESH_TOKEN", raising=False)
+    settings = load_settings(env_file="dummy.env", token_cache_path=cache_path)
+    assert settings.refresh_token is None
+
     _set_env(
         monkeypatch,
         {

@@ -14,7 +14,13 @@ from collections.abc import Sequence
 from dataclasses import replace
 
 from . import progress
-from .config import load_settings
+from .auth import (
+    DEFAULT_TOKEN_CACHE_PATH,
+    ensure_authenticated,
+    is_auth_failure,
+    is_interactive,
+)
+from .config import Settings, clear_token_cache, load_settings
 from .log import PACKAGE, setup_logging
 from .progress import make_console_utf8_safe
 from .runner import explain, get_stats_chart, run
@@ -64,6 +70,36 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     return args
 
 
+def _run_action(args: argparse.Namespace, settings: Settings) -> int:
+    force_update = bool(
+        args.update
+        or (
+            isinstance(args.stats, str)
+            and args.stats.lower() in ("u", "update", "refresh")
+        )
+    )
+    if args.stats:
+        chart = get_stats_chart(
+            settings,
+            cache_path=DEFAULT_CACHE_PATH,
+            force_update=force_update,
+        )
+        progress.log(chart)
+        return 0
+
+    results = run(settings)
+    total_added = sum(result.added for result in results)
+    action = "would be added" if settings.dry_run else "added"
+    prefix = "Done (dry-run)" if settings.dry_run else "Done"
+    progress.log(
+        f"{prefix}: {len(results)} yearly playlists, {total_added} songs {action}."
+    )
+    if not settings.dry_run:
+        progress.log("")
+        progress.log(get_stats_chart(settings, cache_path=DEFAULT_CACHE_PATH))
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """Entry point for the ``yearly-spotify-playlist`` console script."""
     _make_console_utf8_safe()
@@ -76,22 +112,29 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         settings = load_settings(dry_run=args.dry_run)
         settings = replace(settings, dry_run=args.dry_run)
-        force_update = bool(
-            args.update
-            or (
-                isinstance(args.stats, str)
-                and args.stats.lower() in ("u", "update", "refresh")
-            )
+        settings = ensure_authenticated(
+            settings,
+            interactive=is_interactive(),
+            token_cache_path=DEFAULT_TOKEN_CACHE_PATH,
         )
-        if args.stats:
-            chart = get_stats_chart(
-                settings,
-                cache_path=DEFAULT_CACHE_PATH,
-                force_update=force_update,
-            )
-            progress.log(chart)
-            return 0
-        results = run(settings)
+
+        try:
+            return _run_action(args, settings)
+        except Exception as exc:
+            if is_auth_failure(exc) and is_interactive():
+                print(
+                    "\nSpotify token is invalid or expired. Re-authenticating...",
+                    file=sys.stderr,
+                )
+                clear_token_cache(DEFAULT_TOKEN_CACHE_PATH)
+                settings = replace(settings, refresh_token=None)
+                settings = ensure_authenticated(
+                    settings,
+                    interactive=is_interactive(),
+                    token_cache_path=DEFAULT_TOKEN_CACHE_PATH,
+                )
+                return _run_action(args, settings)
+            raise
     except KeyboardInterrupt:
         print("\nInterrupted.", file=sys.stderr)
         return 130
@@ -100,17 +143,6 @@ def main(argv: Sequence[str] | None = None) -> int:
             traceback.print_exc()
         print(explain(exc), file=sys.stderr)
         return 1
-
-    total_added = sum(result.added for result in results)
-    action = "would be added" if settings.dry_run else "added"
-    prefix = "Done (dry-run)" if settings.dry_run else "Done"
-    progress.log(
-        f"{prefix}: {len(results)} yearly playlists, {total_added} songs {action}."
-    )
-    if not settings.dry_run:
-        progress.log("")
-        progress.log(get_stats_chart(settings, cache_path=DEFAULT_CACHE_PATH))
-    return 0
 
 
 _make_console_utf8_safe = make_console_utf8_safe

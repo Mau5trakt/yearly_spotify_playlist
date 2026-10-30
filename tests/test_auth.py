@@ -10,7 +10,11 @@ from yearly_spotify_playlist.auth import (
     OAuthCallbackServer,
     _extract_code,
     _require,
+    authorize_and_get_refresh_token,
+    ensure_authenticated,
     get_auth_code,
+    is_auth_failure,
+    is_interactive,
     main,
     parse_redirect_uri,
 )
@@ -458,6 +462,136 @@ def test_main_successful_flow(
     captured = capsys.readouterr()
     assert "SPOTIFY_REFRESH_TOKEN=mock_refresh_token_xyz" in captured.out
     assert "Now you can run: uv run yearly-spotify-playlist" in captured.out
+
+
+def test_main_saves_token_to_cache(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    from spotipy import SpotifyOAuth
+
+    from yearly_spotify_playlist.config import SCOPES, load_token_cache
+
+    monkeypatch.setenv("SPOTIFY_CLIENT_ID", "test_client_id")
+    monkeypatch.setenv("SPOTIFY_CLIENT_SECRET", "test_client_secret")
+
+    monkeypatch.setattr(
+        "yearly_spotify_playlist.auth.get_auth_code",
+        lambda auth, redirect_uri: "mock_auth_code_123456789012345",
+    )
+
+    def mock_get_access_token(
+        self: SpotifyOAuth, code: str, as_dict: bool = False
+    ) -> None:
+        self.cache_handler.save_token_to_cache(
+            {
+                "refresh_token": "token-saved-to-json-123",
+                "scope": " ".join(SCOPES),
+            }
+        )
+
+    monkeypatch.setattr(SpotifyOAuth, "get_access_token", mock_get_access_token)
+
+    cache_file = tmp_path / ".spotify_token.json"
+    exit_code = main(token_cache_path=cache_file)
+    assert exit_code == 0
+    assert load_token_cache(path=cache_file) == "token-saved-to-json-123"
+
+
+def test_authorize_and_get_refresh_token(monkeypatch: pytest.MonkeyPatch) -> None:
+    from spotipy import SpotifyOAuth
+
+    monkeypatch.setattr(
+        "yearly_spotify_playlist.auth.get_auth_code",
+        lambda auth, redirect_uri, timeout, open_browser: "mock_code",
+    )
+
+    def mock_token(self: SpotifyOAuth, code: str, as_dict: bool = False) -> None:
+        self.cache_handler.save_token_to_cache({"refresh_token": "rt-from-helper"})
+
+    monkeypatch.setattr(SpotifyOAuth, "get_access_token", mock_token)
+
+    token = authorize_and_get_refresh_token(
+        client_id="cid", client_secret="csecret", open_browser=False
+    )
+    assert token == "rt-from-helper"
+
+
+def test_is_interactive(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("sys.stdin.isatty", lambda: True)
+    monkeypatch.setattr("sys.stdout.isatty", lambda: True)
+    assert is_interactive() is True
+
+    monkeypatch.setattr("sys.stdin.isatty", lambda: False)
+    assert is_interactive() is False
+
+
+def test_is_auth_failure() -> None:
+    from spotipy import SpotifyException
+    from spotipy.oauth2 import SpotifyOauthError
+
+    assert is_auth_failure(SpotifyOauthError("invalid_grant")) is True
+
+    exc_401 = SpotifyException(http_status=401, code=-1, msg="Unauthorized")
+    assert is_auth_failure(exc_401) is True
+
+    exc_403 = SpotifyException(http_status=403, code=-1, msg="Forbidden")
+    assert is_auth_failure(exc_403) is True
+
+    exc_500 = SpotifyException(http_status=500, code=-1, msg="Server Error")
+    assert is_auth_failure(exc_500) is False
+
+    assert is_auth_failure(ValueError("other")) is False
+
+    from yearly_spotify_playlist.config import Settings
+
+    settings = Settings(
+        client_id="cid",
+        client_secret="csec",
+        refresh_token="existing_token",
+        redirect_uri="http://127.0.0.1:8888/callback",
+        market=None,
+    )
+    res = ensure_authenticated(settings)
+    assert res.refresh_token == "existing_token"
+
+
+def test_ensure_authenticated_missing_token_non_interactive_raises() -> None:
+    from yearly_spotify_playlist.config import ConfigError, Settings
+
+    settings = Settings(
+        client_id="cid",
+        client_secret="csec",
+        refresh_token=None,
+        redirect_uri="http://127.0.0.1:8888/callback",
+        market=None,
+    )
+    with pytest.raises(ConfigError, match="missing SPOTIFY_REFRESH_TOKEN"):
+        ensure_authenticated(settings, interactive=False)
+
+
+def test_ensure_authenticated_missing_token_interactive(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    from yearly_spotify_playlist.config import Settings, load_token_cache
+
+    settings = Settings(
+        client_id="cid",
+        client_secret="csec",
+        refresh_token=None,
+        redirect_uri="http://127.0.0.1:8888/callback",
+        market=None,
+    )
+
+    monkeypatch.setattr(
+        "yearly_spotify_playlist.auth.authorize_and_get_refresh_token",
+        lambda client_id, client_secret, redirect_uri: "newly_obtained_token",
+    )
+
+    cache_file = tmp_path / ".spotify_token.json"
+    res = ensure_authenticated(settings, interactive=True, token_cache_path=cache_file)
+    assert res.refresh_token == "newly_obtained_token"
+    assert load_token_cache(path=cache_file) == "newly_obtained_token"
 
 
 def test_main_cancellation(

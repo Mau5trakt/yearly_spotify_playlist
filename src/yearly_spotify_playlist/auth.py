@@ -22,14 +22,23 @@ import sys
 import threading
 import urllib.parse
 import webbrowser
+from dataclasses import replace
+from pathlib import Path
 from typing import Any, Self
 
 from dotenv import load_dotenv
-from spotipy import SpotifyOAuth
+from spotipy import SpotifyException, SpotifyOAuth
 from spotipy.cache_handler import MemoryCacheHandler
 from spotipy.oauth2 import SpotifyOauthError
 
-from .config import DEFAULT_REDIRECT_URI, SCOPES
+from .config import (
+    DEFAULT_REDIRECT_URI,
+    DEFAULT_TOKEN_CACHE_PATH,
+    SCOPES,
+    ConfigError,
+    Settings,
+    save_token_cache,
+)
 
 
 def _require(name: str) -> str:
@@ -283,7 +292,33 @@ def _extract_code(auth: SpotifyOAuth, pasted: str) -> str:
     return code
 
 
-def main() -> int:
+def authorize_and_get_refresh_token(
+    client_id: str,
+    client_secret: str,
+    redirect_uri: str = DEFAULT_REDIRECT_URI,
+    *,
+    timeout: float = 60.0,
+    open_browser: bool = True,
+) -> str:
+    """Run the OAuth loopback flow to obtain and return a Spotify refresh token."""
+    auth = SpotifyOAuth(
+        client_id=client_id,
+        client_secret=client_secret,
+        redirect_uri=redirect_uri,
+        scope=" ".join(SCOPES),
+        cache_handler=MemoryCacheHandler(),
+        open_browser=False,
+    )
+    code = get_auth_code(auth, redirect_uri, timeout=timeout, open_browser=open_browser)
+    auth.get_access_token(code, as_dict=False)
+    token_info = auth.cache_handler.get_cached_token() or {}
+    refresh_token = token_info.get("refresh_token")
+    if not refresh_token:
+        raise SpotifyOauthError("Spotify did not return a refresh token.")
+    return refresh_token
+
+
+def main(token_cache_path: Path | str = DEFAULT_TOKEN_CACHE_PATH) -> int:
     """Walk the user through the authorization code flow and print the token."""
     load_dotenv()
 
@@ -330,9 +365,13 @@ def main() -> int:
         )
         return 1
 
+    save_token_cache(refresh_token, path=token_cache_path)
+
     granted = token_info.get("scope", "")
-    print("\nDone. Add this to your .env:\n")
-    print(f"SPOTIFY_REFRESH_TOKEN={refresh_token}")
+    print(f"\nDone. Saved refresh token to {token_cache_path}")
+    print(
+        f"Optionally, you can also add this to your .env:\n\nSPOTIFY_REFRESH_TOKEN={refresh_token}"
+    )
     if granted and set(granted.split()) != set(SCOPES):
         print(
             f'\nHeads up: the granted scopes were "{granted}" and do not match the '
@@ -341,6 +380,47 @@ def main() -> int:
         )
     print("\nNow you can run: uv run yearly-spotify-playlist")
     return 0
+
+
+def is_interactive() -> bool:
+    """Return True if both stdin and stdout are attached to an interactive terminal."""
+    return sys.stdin.isatty() and sys.stdout.isatty()
+
+
+def is_auth_failure(exc: Exception) -> bool:
+    """Check if an exception indicates that the Spotify refresh token is expired or invalid."""
+    if isinstance(exc, SpotifyOauthError):
+        return True
+    return bool(isinstance(exc, SpotifyException) and exc.http_status in (401, 403))
+
+
+def ensure_authenticated(
+    settings: Settings,
+    *,
+    interactive: bool | None = None,
+    token_cache_path: Path | str = DEFAULT_TOKEN_CACHE_PATH,
+) -> Settings:
+    """Ensure settings contains a refresh_token, prompting for loopback auth if missing."""
+    if settings.refresh_token:
+        return settings
+
+    if interactive is None:
+        interactive = is_interactive()
+
+    if not interactive:
+        raise ConfigError(
+            "missing SPOTIFY_REFRESH_TOKEN. Copy .env.example to .env and fill in "
+            "SPOTIFY_REFRESH_TOKEN, or run 'python -m yearly_spotify_playlist.auth' interactively."
+        )
+
+    print("\nNo Spotify refresh token found. Starting loopback authentication...")
+    token = authorize_and_get_refresh_token(
+        client_id=settings.client_id,
+        client_secret=settings.client_secret,
+        redirect_uri=settings.redirect_uri,
+    )
+    save_token_cache(token, path=token_cache_path)
+    return replace(settings, refresh_token=token)
 
 
 if __name__ == "__main__":  # pragma: no cover
