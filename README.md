@@ -134,13 +134,11 @@ uv run python -m yearly_spotify_playlist.auth
 
 The command:
 
-1. Prints the authorization URL and tries to open it in your browser.
-2. Asks you to paste the URL Spotify redirected you to.
-
-   You will end up at `http://127.0.0.1:8888/callback?code=...` and the browser will
-   say it cannot connect. **That is normal and expected** — nothing is listening on
-   that port. What matters is copying the full URL from the address bar.
-3. Exchanges the code for a refresh token and prints the line to paste into your
+1. Starts an ephemeral loopback HTTP listener on the configured redirect URI (by default `http://127.0.0.1:8888/callback`).
+2. Prints the authorization URL and opens it in your browser.
+3. Automatically captures the authorization code when Spotify redirects, rendering a clean confirmation page in your browser tab.
+   - *Fallback:* If the port is in use or the connection times out, it falls back to prompting for manual URL paste without crashing.
+4. Exchanges the code for a refresh token and prints the line to paste into your
    `.env`.
 
 If you already have a refresh token from before (or from another app), skip this step.

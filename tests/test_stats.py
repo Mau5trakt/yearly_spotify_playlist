@@ -282,9 +282,13 @@ def test_cli_stats_force_update_bypasses_cache(tmp_path: Path, capsys):
             "yearly_spotify_playlist.runner._read_liked_tracks",
             return_value={2024: fresh_tracks},
         ),
-        patch("yearly_spotify_playlist.runner.SpotifyLibrary"),
+        patch("yearly_spotify_playlist.runner.SpotifyLibrary") as mock_lib_cls,
         patch("yearly_spotify_playlist.runner.build_spotify"),
     ):
+        mock_lib_cls.return_value.current_user.return_value = {
+            "id": "uid",
+            "display_name": "User",
+        }
         exit_code = main(["-su"])
 
     assert exit_code == 0
